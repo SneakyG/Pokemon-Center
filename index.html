@@ -1,0 +1,1539 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Pokémon Team Planner</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+<script src="https://cdn.tailwindcss.com/3.4.5"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<script>
+  tailwind.config = { theme: { extend: { fontFamily: { sans: ['"Be Vietnam Pro"', 'system-ui', 'sans-serif'], mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'] } } } };
+</script>
+<style>
+
+  :root {
+    --bg: #07080d; --bg2: #0e1018; --ink: #f2f3f7; --muted: #9aa0b4; --line: #262a3a;
+    --glass: rgba(22, 25, 38, 0.62); --accent: #ffcb05;
+  }
+  html, body { background: var(--bg); color: var(--ink); }
+  body {
+    font-family: "Be Vietnam Pro", system-ui, sans-serif;
+    background:
+      radial-gradient(1200px 600px at 10% -10%, rgba(255,203,5,0.08), transparent 60%),
+      radial-gradient(900px 500px at 110% 10%, rgba(99,102,241,0.10), transparent 60%),
+      var(--bg);
+    min-height: 100vh;
+  }
+  .grid-bg {
+    background-image: linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+  .glass { background: var(--glass); backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%); }
+  .brutal { border: 2px solid #f2f3f7; box-shadow: 5px 5px 0 #f2f3f7; }
+  .brutal-sm { border: 2px solid #f2f3f7; box-shadow: 3px 3px 0 #f2f3f7; }
+  .brutal-btn { transition: transform .12s ease, box-shadow .12s ease; }
+  .brutal-btn:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 #f2f3f7; }
+  .brutal-btn:active { transform: translate(3px,3px); box-shadow: 0 0 0 #f2f3f7; }
+
+  /* Type-driven card: --tc is set inline from the Pokémon's primary type */
+  .poke-card {
+    position: relative; border: 2px solid var(--tc); border-radius: 18px;
+    background: linear-gradient(160deg, color-mix(in srgb, var(--tc) 16%, rgba(18,20,30,.85)) 0%, rgba(14,16,24,.88) 45%);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    box-shadow: 6px 6px 0 color-mix(in srgb, var(--tc) 70%, #000), 0 0 32px -6px color-mix(in srgb, var(--tc) 55%, transparent);
+    transition: transform .2s ease, box-shadow .2s ease;
+  }
+  .poke-card:hover {
+    transform: translate(-2px,-3px);
+    box-shadow: 9px 9px 0 color-mix(in srgb, var(--tc) 70%, #000), 0 0 48px -4px color-mix(in srgb, var(--tc) 75%, transparent);
+  }
+  .poke-card .orb { position:absolute; inset:auto -40px -40px auto; width:160px; height:160px; border-radius:50%;
+    background: radial-gradient(circle, color-mix(in srgb, var(--tc) 35%, transparent), transparent 70%); pointer-events:none; }
+  .type-badge { font-weight: 800; letter-spacing: .06em; text-transform: uppercase; font-size: 10.5px; padding: 3px 9px; border-radius: 999px;
+    border: 1.5px solid rgba(0,0,0,.45); box-shadow: 2px 2px 0 rgba(0,0,0,.55); color: #0b0b0f; }
+  .chip { font-family: "JetBrains Mono", monospace; font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 6px; white-space: nowrap; }
+  .tab-active { background: var(--accent); color: #0b0b0f; }
+  .fade-in { animation: fadeIn .35s ease both; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .stagger > * { animation: fadeIn .4s ease both; }
+  .stagger > *:nth-child(2){animation-delay:.04s}.stagger > *:nth-child(3){animation-delay:.08s}
+  .stagger > *:nth-child(4){animation-delay:.12s}.stagger > *:nth-child(5){animation-delay:.16s}
+  .stagger > *:nth-child(6){animation-delay:.2s}.stagger > *:nth-child(7){animation-delay:.24s}
+  select, input, textarea { background: #0e1018; color: var(--ink); }
+  select option, select optgroup { background: #0e1018; color: var(--ink); }
+  ::-webkit-scrollbar { width: 10px; height: 10px; } ::-webkit-scrollbar-thumb { background: #2a2f42; border-radius: 10px; }
+  .dex-num { font-family: "JetBrains Mono", monospace; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+  :root { color-scheme: dark; }
+  body { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); margin: 0; }
+  .skeleton { background: linear-gradient(90deg, rgba(255,255,255,.04), rgba(255,255,255,.10), rgba(255,255,255,.04)); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; border-radius: 10px; }
+  @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+  .spin { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }
+  button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<!-- ====================================================================
+     DATA LAYER  (plain JS — the same schema is used for JSON import/export)
+     ==================================================================== -->
+<script>
+/* Helper: bilingual text */
+const T = (vi, en) => ({ vi, en });
+/* Helper: move = name, type, method { k: level|tm|hm|tutor, v: label } */
+const M = (vi, en, type, k, v) => ({ name: T(vi, en), type, method: { k, v } });
+
+const TYPE_COLORS = {
+  normal:'#A8A77A', fire:'#FF7A2F', water:'#4F8DFF', electric:'#F7D02C', grass:'#5FD068', ice:'#7FE3E0',
+  fighting:'#E0453A', poison:'#B65CD6', ground:'#E2BF65', flying:'#A98FF3', psychic:'#FF5C8A', bug:'#A6B91A',
+  rock:'#C9AE4A', ghost:'#8A6BC8', dragon:'#7A4DFF', dark:'#8C7464', steel:'#B7B7CE', fairy:'#F4A6D7'
+};
+const TYPE_NAMES = {
+  normal:T('Thường','Normal'), fire:T('Lửa','Fire'), water:T('Nước','Water'), electric:T('Điện','Electric'),
+  grass:T('Cỏ','Grass'), ice:T('Băng','Ice'), fighting:T('Giác Đấu','Fighting'), poison:T('Độc','Poison'),
+  ground:T('Đất','Ground'), flying:T('Bay','Flying'), psychic:T('Siêu Linh','Psychic'), bug:T('Côn Trùng','Bug'),
+  rock:T('Đá','Rock'), ghost:T('Ma','Ghost'), dragon:T('Rồng','Dragon'), dark:T('Bóng Tối','Dark'),
+  steel:T('Thép','Steel'), fairy:T('Tiên','Fairy')
+};
+const STATS = {
+  atk:T('Tấn Công','Attack'), def:T('Phòng Thủ','Defense'), spa:T('Tấn Công ĐB','Sp. Atk'),
+  spd:T('Phòng Thủ ĐB','Sp. Def'), spe:T('Tốc Độ','Speed')
+};
+
+/* ---------- Official mainline Game Freak titles ---------- */
+const BASE_GAMES = [
+  { id:'rby', gen:1, region:'Kanto', year:1996, name:'Red / Blue / Green' },
+  { id:'yellow', gen:1, region:'Kanto', year:1998, name:'Yellow' },
+  { id:'gs', gen:2, region:'Johto', year:1999, name:'Gold / Silver' },
+  { id:'crystal', gen:2, region:'Johto', year:2000, name:'Crystal' },
+  { id:'rs', gen:3, region:'Hoenn', year:2002, name:'Ruby / Sapphire' },
+  { id:'frlg', gen:3, region:'Kanto', year:2004, name:'FireRed / LeafGreen' },
+  { id:'emerald', gen:3, region:'Hoenn', year:2004, name:'Emerald' },
+  { id:'dp', gen:4, region:'Sinnoh', year:2006, name:'Diamond / Pearl' },
+  { id:'platinum', gen:4, region:'Sinnoh', year:2008, name:'Platinum' },
+  { id:'hgss', gen:4, region:'Johto', year:2009, name:'HeartGold / SoulSilver' },
+  { id:'bw', gen:5, region:'Unova', year:2010, name:'Black / White' },
+  { id:'b2w2', gen:5, region:'Unova', year:2012, name:'Black 2 / White 2' },
+  { id:'xy', gen:6, region:'Kalos', year:2013, name:'X / Y' },
+  { id:'oras', gen:6, region:'Hoenn', year:2014, name:'Omega Ruby / Alpha Sapphire' },
+  { id:'sm', gen:7, region:'Alola', year:2016, name:'Sun / Moon' },
+  { id:'usum', gen:7, region:'Alola', year:2017, name:'Ultra Sun / Ultra Moon' },
+  { id:'lgpe', gen:7, region:'Kanto', year:2018, name:"Let's Go, Pikachu! / Eevee!" },
+  { id:'swsh', gen:8, region:'Galar', year:2019, name:'Sword / Shield' },
+  { id:'bdsp', gen:8, region:'Sinnoh', year:2021, name:'Brilliant Diamond / Shining Pearl' },
+  { id:'pla', gen:8, region:'Hisui', year:2022, name:'Legends: Arceus' },
+  { id:'sv', gen:9, region:'Paldea', year:2022, name:'Scarlet / Violet' },
+  { id:'plza', gen:9, region:'Kalos (Lumiose)', year:2025, name:'Legends: Z-A' }
+];
+
+/* ---------- Built-in walkthrough data: Pokémon Platinum ---------- */
+const BUILTIN_DATA = {
+  platinum: {
+    phases: {
+      early: {
+        levelRange: 'Lv. 5 – 26',
+        tip: T(
+          'Bắt Starly và Shinx ngay ở Route 201–202, Budew ở Route 204. Sau khi có Xe Đạp ở Eterna, vào lối ẩn của Wayward Cave (dưới Cycling Road) để bắt Gible. Mach Punch của Monferno quét sạch Gym Đá; Wing Attack xử lý Gym Cỏ; Bite/Pursuit là chìa khóa cho Gym Ma.',
+          'Catch Starly and Shinx on Routes 201–202 and Budew on Route 204. Once you have the Bicycle in Eterna, take the hidden entrance to Wayward Cave (under Cycling Road) for Gible. Monferno\'s Mach Punch sweeps the Rock Gym, Wing Attack handles the Grass Gym, and Bite/Pursuit are the key to the Ghost Gym.'
+        ),
+        battles: [
+          { leader:'Roark', place:'Oreburgh City', type:'rock', ace:'Cranidos Lv. 14', counters:['Monferno','Budew'] },
+          { leader:'Gardenia', place:'Eterna City', type:'grass', ace:'Roserade Lv. 22', counters:['Staravia','Monferno'] },
+          { leader:'Fantina', place:'Hearthome City', type:'ghost', ace:'Mismagius Lv. 26', counters:['Luxio','Buizel'] }
+        ],
+        team: [
+          { name:'Monferno', dex:391, types:['fire','fighting'], lv:'Lv. 14 – 26',
+            loc:{ place:'Route 201', note:T('Pokémon khởi đầu (Chimchar) từ GS. Rowan','Starter (Chimchar) from Prof. Rowan') },
+            evo:T('Chimchar → Monferno (Lv. 14) → Infernape (Lv. 36)','Chimchar → Monferno (Lv. 14) → Infernape (Lv. 36)'),
+            ability:{ name:T('Rực Rỡ','Blaze'), desc:T('Tăng 50% sức mạnh chiêu Lửa khi HP ≤ 1/3.','Boosts Fire moves by 50% at ≤ 1/3 HP.') },
+            nature:{ name:T('Ngây Thơ','Naive'), up:'spe', down:'spd' },
+            item:{ name:T('Quả Oran','Oran Berry'), note:T('Hồi 10 HP khi máu thấp.','Restores 10 HP when low.') },
+            moves:[ M('Đấm Tốc Độ','Mach Punch','fighting','level','Lv. 14'), M('Than Hồng','Ember','fire','level','Lv. 7'),
+                    M('Khiêu Khích','Taunt','dark','level','Lv. 9'), M('Đập Đá','Rock Smash','fighting','hm','HM06') ],
+            role:{ label:T('Mũi Nhọn Tấn Công','Lead Sweeper'), desc:T('Mach Punch 2× lên cả 3 Pokémon của Roark. Lưu ý: chiêu Giác Đấu vô hiệu với hệ Ma của Fantina — dùng Ember.','Mach Punch is super-effective on all three of Roark\'s Pokémon. Fighting moves don\'t touch Fantina\'s Ghosts — use Ember there.') } },
+          { name:'Staravia', dex:397, types:['normal','flying'], lv:'Lv. 14 – 26',
+            loc:{ place:'Route 201', note:T('Bãi cỏ đầu tiên (Starly)','First grass patch (Starly)') },
+            evo:T('Starly → Staravia (Lv. 14) → Staraptor (Lv. 34)','Starly → Staravia (Lv. 14) → Staraptor (Lv. 34)'),
+            ability:{ name:T('Uy Hiếp','Intimidate'), desc:T('Giảm 1 bậc Tấn Công của đối thủ khi vào sân (có từ Staravia).','Lowers foe\'s Attack by 1 stage on entry (from Staravia onward).') },
+            nature:{ name:T('Cứng Cỏi','Adamant'), up:'atk', down:'spa' },
+            item:{ name:T('Quả Pecha','Pecha Berry'), note:T('Giải độc ngay lập tức.','Cures poison instantly.') },
+            moves:[ M('Đòn Cánh','Wing Attack','flying','level','Lv. 9'), M('Tấn Công Nhanh','Quick Attack','normal','level','Lv. 5'),
+                    M('Phân Thân','Double Team','normal','level','Lv. 13'), M('Gầm Gừ','Growl','normal','level','Lv. 1') ],
+            role:{ label:T('Khắc Chế Hệ Cỏ','Grass Check'), desc:T('Wing Attack xé nát đội của Gardenia. Tránh đưa ra trước Gym Đá của Roark.','Wing Attack shreds Gardenia\'s team. Keep it away from Roark\'s Rock Gym.') } },
+          { name:'Luxio', dex:404, types:['electric'], lv:'Lv. 15 – 26',
+            loc:{ place:'Route 202', note:T('Bãi cỏ (Shinx), cũng có ở Route 203–204','Grass (Shinx), also Routes 203–204') },
+            evo:T('Shinx → Luxio (Lv. 15) → Luxray (Lv. 30)','Shinx → Luxio (Lv. 15) → Luxray (Lv. 30)'),
+            ability:{ name:T('Uy Hiếp','Intimidate'), desc:T('Giảm 1 bậc Tấn Công đối thủ — chọn Shinx có Intimidate thay vì Rivalry.','Lowers foe\'s Attack — pick an Intimidate Shinx over Rivalry.') },
+            nature:{ name:T('Cứng Cỏi','Adamant'), up:'atk', down:'spa' },
+            item:{ name:T('Quả Oran','Oran Berry'), note:T('Hồi 10 HP khi máu thấp.','Restores 10 HP when low.') },
+            moves:[ M('Tia Lửa Điện','Spark','electric','level','Lv. 13'), M('Cắn','Bite','dark','level','Lv. 18'),
+                    M('Trừng Mắt','Leer','normal','level','Lv. 5'), M('Húc','Tackle','normal','level','Lv. 1') ],
+            role:{ label:T('Sát Thủ Hệ Ma','Ghost Breaker'), desc:T('Bite (Bóng Tối) gây 2× lên Duskull/Haunter/Mismagius của Fantina; Spark trị chim hoang dã.','Bite deals 2× to Fantina\'s Duskull/Haunter/Mismagius; Spark handles wild birds.') } },
+          { name:'Budew', dex:406, types:['grass','poison'], lv:'Lv. 5 – 22',
+            loc:{ place:'Route 204', note:T('Bãi cỏ phía nam, cũng có ở Eterna Forest','South grass, also Eterna Forest') },
+            evo:T('Budew → Roselia (thân thiết cao, ban ngày) → Roserade (Đá Sáng)','Budew → Roselia (high friendship, daytime) → Roserade (Shiny Stone)'),
+            ability:{ name:T('Tự Chữa Lành','Natural Cure'), desc:T('Tự giải trạng thái bất lợi khi rút về.','Heals status conditions when switched out.') },
+            nature:{ name:T('Khiêm Tốn','Modest'), up:'spa', down:'atk' },
+            item:{ name:T('Chuông Êm Dịu','Soothe Bell'), note:T('Tăng độ thân thiết để tiến hóa nhanh — nhận ở Hearthome City.','Speeds up friendship evolution — obtained in Hearthome City.') },
+            moves:[ M('Hút Mạnh','Mega Drain','grass','level','Lv. 13'), M('Bào Tử Tê Liệt','Stun Spore','grass','level','Lv. 10'),
+                    M('Sinh Trưởng','Growth','normal','level','Lv. 4'), M('Hút Máu','Absorb','grass','level','Lv. 1') ],
+            role:{ label:T('Hỗ Trợ Trạng Thái','Status Support'), desc:T('Mega Drain 4× lên Geodude, 2× lên Onix/Cranidos; Stun Spore làm tê liệt boss nhanh.','Mega Drain is 4× on Geodude, 2× on Onix/Cranidos; Stun Spore cripples fast bosses.') } },
+          { name:'Buizel', dex:418, types:['water'], lv:'Lv. 15 – 26',
+            loc:{ place:'Route 205', note:T('Phía nam, gần Valley Windworks','South side, near Valley Windworks') },
+            evo:T('Buizel → Floatzel (Lv. 26)','Buizel → Floatzel (Lv. 26)'),
+            ability:{ name:T('Bơi Nhanh','Swift Swim'), desc:T('Nhân đôi Tốc Độ khi trời mưa.','Doubles Speed in rain.') },
+            nature:{ name:T('Cứng Cỏi','Adamant'), up:'atk', down:'spa' },
+            item:{ name:T('Quả Oran','Oran Berry'), note:T('Hồi 10 HP khi máu thấp.','Restores 10 HP when low.') },
+            moves:[ M('Súng Nước','Water Gun','water','level','Lv. 6'), M('Truy Đuổi','Pursuit','dark','level','Lv. 10'),
+                    M('Tấn Công Nhanh','Quick Attack','normal','level','Lv. 3'), M('Sao Băng','Swift','normal','level','Lv. 15') ],
+            role:{ label:T('Tấn Công Tốc Độ','Fast Attacker'), desc:T('Pursuit 2× lên hệ Ma của Fantina; Water Gun bổ sung cho trận Roark.','Pursuit is 2× vs Fantina\'s Ghosts; Water Gun backs up the Roark fight.') } },
+          { name:'Gible', dex:443, types:['dragon','ground'], lv:'Lv. 15 – 24',
+            loc:{ place:'Wayward Cave', note:T('Lối vào ẩn dưới Cycling Road (Route 206) — cần Xe Đạp','Hidden entrance under Cycling Road (Route 206) — needs Bicycle') },
+            evo:T('Gible → Gabite (Lv. 24) → Garchomp (Lv. 48)','Gible → Gabite (Lv. 24) → Garchomp (Lv. 48)'),
+            ability:{ name:T('Màn Cát','Sand Veil'), desc:T('Tăng né tránh khi có bão cát.','Raises evasion in a sandstorm.') },
+            nature:{ name:T('Vui Vẻ','Jolly'), up:'spe', down:'spa' },
+            item:{ name:T('Quả Oran','Oran Berry'), note:T('Giữ Gible sống sót khi luyện cấp.','Keeps Gible alive while training.') },
+            moves:[ M('Cơn Thịnh Nộ Rồng','Dragon Rage','dragon','level','Lv. 7'), M('Lao Húc','Take Down','normal','level','Lv. 15'),
+                    M('Mồ Cát','Sand Tomb','ground','level','Lv. 19'), M('Hất Cát','Sand-Attack','ground','level','Lv. 3') ],
+            role:{ label:T('Đầu Tư Dài Hạn','Long-term Investment'), desc:T('Dragon Rage luôn gây đúng 40 sát thương — cực mạnh ở đầu game. Nuôi dần thành Garchomp.','Dragon Rage always deals exactly 40 damage — huge early. Raise it into Garchomp.') } }
+        ]
+      },
+      mid: {
+        levelRange: 'Lv. 26 – 44',
+        tip: T(
+          'Tiến hóa xong cấp 2/3 cho cả đội. Infernape (Lv. 36) và Staraptor (Lv. 34) cùng học Cận Chiến — vũ khí chính trước Byron và Candice. Đến Iron Island lấy TM23 Iron Tail cho Luxray và Đá Sáng cho Roselia.',
+          'Finish second/third-stage evolutions. Infernape (Lv. 36) and Staraptor (Lv. 34) both get Close Combat — your main weapon for Byron and Candice. Visit Iron Island for TM23 Iron Tail (Luxray) and a Shiny Stone (Roselia).'
+        ),
+        battles: [
+          { leader:'Maylene', place:'Veilstone City', type:'fighting', ace:'Lucario Lv. 32', counters:['Staraptor','Infernape'] },
+          { leader:'Crasher Wake', place:'Pastoria City', type:'water', ace:'Floatzel Lv. 37', counters:['Luxray','Roselia'] },
+          { leader:'Byron', place:'Canalave City', type:'steel', ace:'Bastiodon Lv. 41', counters:['Infernape','Gabite','Floatzel'] },
+          { leader:'Candice', place:'Snowpoint City', type:'ice', ace:'Froslass Lv. 44', counters:['Infernape','Staraptor','Luxray'] }
+        ],
+        team: [
+          { name:'Infernape', dex:392, types:['fire','fighting'], lv:'Lv. 36 – 44',
+            loc:{ place:'Route 201', note:T('Starter Chimchar, tiến hóa từ Monferno','Starter Chimchar, evolved from Monferno') },
+            evo:T('Tiến hóa cuối ở Lv. 36','Final stage at Lv. 36'),
+            ability:{ name:T('Rực Rỡ','Blaze'), desc:T('Tăng 50% sức mạnh chiêu Lửa khi HP ≤ 1/3.','Boosts Fire moves by 50% at ≤ 1/3 HP.') },
+            nature:{ name:T('Ngây Thơ','Naive'), up:'spe', down:'spd' },
+            item:{ name:T('Than Củi','Charcoal'), note:T('+20% sức mạnh chiêu Lửa.','+20% Fire move power.') },
+            moves:[ M('Cận Chiến','Close Combat','fighting','level','Lv. 41'), M('Bánh Xe Lửa','Flame Wheel','fire','level','Lv. 21'),
+                    M('Đấm Tốc Độ','Mach Punch','fighting','level','Lv. 14'), M('Đấm Sấm Sét','ThunderPunch','electric','tutor','Tutor') ],
+            role:{ label:T('Át Chủ Bài Hỗn Hợp','Mixed Ace'), desc:T('Lửa + Giác Đấu trị cả Byron (Thép) lẫn Candice (Băng). ThunderPunch dành cho Gyarados/Floatzel của Wake.','Fire + Fighting covers Byron (Steel) and Candice (Ice). ThunderPunch handles Wake\'s Gyarados/Floatzel.') } },
+          { name:'Staraptor', dex:398, types:['normal','flying'], lv:'Lv. 34 – 44',
+            loc:{ place:'Route 201', note:T('Starly, tiến hóa ở Lv. 34','Starly, evolves at Lv. 34') },
+            evo:T('Tiến hóa cuối ở Lv. 34 — học ngay Cận Chiến','Final stage at Lv. 34 — learns Close Combat immediately'),
+            ability:{ name:T('Uy Hiếp','Intimidate'), desc:T('Giảm 1 bậc Tấn Công đối thủ khi vào sân.','Lowers foe\'s Attack by 1 stage on entry.') },
+            nature:{ name:T('Cứng Cỏi','Adamant'), up:'atk', down:'spa' },
+            item:{ name:T('Mỏ Nhọn','Sharp Beak'), note:T('+20% sức mạnh chiêu Bay.','+20% Flying move power.') },
+            moves:[ M('Cận Chiến','Close Combat','fighting','level','Lv. 34'), M('Bay','Fly','flying','hm','HM02'),
+                    M('Đòn Cánh','Wing Attack','flying','level','Lv. 9'), M('Tấn Công Nhanh','Quick Attack','normal','level','Lv. 5') ],
+            role:{ label:T('Kẻ Phá Vỡ Vật Lý','Physical Wallbreaker'), desc:T('Fly 2× lên đội Giác Đấu của Maylene; Close Combat xuyên thủng Thép và Băng. Kiêm HM Bay.','Fly is 2× on Maylene\'s Fighters; Close Combat breaks Steel and Ice. Doubles as the Fly user.') } },
+          { name:'Luxray', dex:405, types:['electric'], lv:'Lv. 30 – 44',
+            loc:{ place:'Route 202', note:T('Shinx, tiến hóa ở Lv. 30','Shinx, evolves at Lv. 30') },
+            evo:T('Tiến hóa cuối ở Lv. 30','Final stage at Lv. 30'),
+            ability:{ name:T('Uy Hiếp','Intimidate'), desc:T('Giảm 1 bậc Tấn Công đối thủ khi vào sân.','Lowers foe\'s Attack by 1 stage on entry.') },
+            nature:{ name:T('Cứng Cỏi','Adamant'), up:'atk', down:'spa' },
+            item:{ name:T('Nam Châm','Magnet'), note:T('+20% sức mạnh chiêu Điện.','+20% Electric move power.') },
+            moves:[ M('Nanh Sấm','Thunder Fang','electric','level','Lv. 35'), M('Cắn','Bite','dark','level','Lv. 18'),
+                    M('Đuôi Sắt','Iron Tail','steel','tm','TM23'), M('Tia Lửa Điện','Spark','electric','level','Lv. 13') ],
+            role:{ label:T('Sát Thủ Hệ Nước','Water Slayer'), desc:T('Thunder Fang hạ Gyarados (4×) và Floatzel của Wake; Iron Tail (Iron Island) đánh 2× lên đội Băng của Candice.','Thunder Fang drops Wake\'s Gyarados (4×) and Floatzel; Iron Tail (Iron Island) hits Candice\'s Ice team 2×.') } },
+          { name:'Floatzel', dex:419, types:['water'], lv:'Lv. 26 – 44',
+            loc:{ place:'Route 205', note:T('Buizel, tiến hóa ở Lv. 26','Buizel, evolves at Lv. 26') },
+            evo:T('Tiến hóa cuối ở Lv. 26 — học ngay Nhai Nát','Final stage at Lv. 26 — learns Crunch on evolution'),
+            ability:{ name:T('Bơi Nhanh','Swift Swim'), desc:T('Nhân đôi Tốc Độ khi trời mưa.','Doubles Speed in rain.') },
+            nature:{ name:T('Cứng Cỏi','Adamant'), up:'atk', down:'spa' },
+            item:{ name:T('Nước Thần Bí','Mystic Water'), note:T('+20% sức mạnh chiêu Nước.','+20% Water move power.') },
+            moves:[ M('Phản Lực Nước','Aqua Jet','water','level','Lv. 21'), M('Nhai Nát','Crunch','dark','level','Lv. 26'),
+                    M('Lướt Sóng','Surf','water','hm','HM03'), M('Phá Gạch','Brick Break','fighting','tm','TM31') ],
+            role:{ label:T('Kết Liễu & HM','Revenge Killer & HM'), desc:T('Aqua Jet ra đòn trước để kết liễu; Brick Break trị Bastiodon/Steelix và đội Băng. Kiêm HM Lướt Sóng.','Aqua Jet picks off weakened foes; Brick Break handles Bastiodon/Steelix and Ice types. Doubles as the Surf user.') } },
+          { name:'Roselia', dex:315, types:['grass','poison'], lv:'Lv. 22 – 44',
+            loc:{ place:'Route 204', note:T('Budew tiến hóa nhờ thân thiết (ban ngày)','Budew evolved via friendship (daytime)') },
+            evo:T('Dùng Đá Sáng (Iron Island) khi đã học đủ chiêu → Roserade','Use a Shiny Stone (Iron Island) once moves are learned → Roserade'),
+            ability:{ name:T('Tự Chữa Lành','Natural Cure'), desc:T('Tự giải trạng thái bất lợi khi rút về.','Heals status conditions when switched out.') },
+            nature:{ name:T('Khiêm Tốn','Modest'), up:'spa', down:'atk' },
+            item:{ name:T('Hạt Thần Kỳ','Miracle Seed'), note:T('+20% sức mạnh chiêu Cỏ.','+20% Grass move power.') },
+            moves:[ M('Hút Cực Mạnh','Giga Drain','grass','level','Lv. 25'), M('Lá Ma Thuật','Magical Leaf','grass','level','Lv. 19'),
+                    M('Hạt Ký Sinh','Leech Seed','grass','level','Lv. 16'), M('Bào Tử Tê Liệt','Stun Spore','grass','level','Lv. 10') ],
+            role:{ label:T('Trụ Hồi Máu','Sustain Tank'), desc:T('Giga Drain 4× lên Quagsire của Wake; Leech Seed + Stun Spore bào mòn đối thủ bền bỉ.','Giga Drain is 4× on Wake\'s Quagsire; Leech Seed + Stun Spore wear down bulky foes.') } },
+          { name:'Gabite', dex:444, types:['dragon','ground'], lv:'Lv. 24 – 44',
+            loc:{ place:'Wayward Cave', note:T('Gible, tiến hóa ở Lv. 24','Gible, evolves at Lv. 24') },
+            evo:T('Gabite → Garchomp (Lv. 48)','Gabite → Garchomp (Lv. 48)'),
+            ability:{ name:T('Màn Cát','Sand Veil'), desc:T('Tăng né tránh khi có bão cát.','Raises evasion in a sandstorm.') },
+            nature:{ name:T('Vui Vẻ','Jolly'), up:'spe', down:'spa' },
+            item:{ name:T('Cát Mềm','Soft Sand'), note:T('+20% sức mạnh chiêu Đất.','+20% Ground move power.') },
+            moves:[ M('Đào Đất','Dig','ground','tm','TM28'), M('Vuốt Rồng','Dragon Claw','dragon','tm','TM02'),
+                    M('Lao Húc','Take Down','normal','level','Lv. 15'), M('Cơn Thịnh Nộ Rồng','Dragon Rage','dragon','level','Lv. 7') ],
+            role:{ label:T('Khắc Chế Hệ Thép','Steel Breaker'), desc:T('Dig 4× lên Magneton, 2× lên Steelix và Bastiodon của Byron. Tránh xa Gym Băng (4× yếu Băng).','Dig is 4× on Byron\'s Magneton, 2× on Steelix and Bastiodon. Keep it away from the Ice Gym (4× weak).') } }
+        ]
+      },
+      end: {
+        levelRange: 'Lv. 46 – 62',
+        tip: T(
+          'Garchomp miễn nhiễm Điện — mở màn trận Volkner. Ở Tứ Thiên Vương: Infernape/Staraptor cho Aaron, Roserade/Floatzel cho Bertha, Floatzel/Garchomp cho Flint, Luxray/Roserade (Crunch, Shadow Ball) cho Lucian. Trước Cynthia: giữ Ice Punch của Floatzel cho Garchomp Lv. 62.',
+          'Garchomp is immune to Electric — lead with it against Volkner. Elite Four: Infernape/Staraptor for Aaron, Roserade/Floatzel for Bertha, Floatzel/Garchomp for Flint, Luxray/Roserade (Crunch, Shadow Ball) for Lucian. Versus Cynthia: save Floatzel\'s Ice Punch for her Lv. 62 Garchomp.'
+        ),
+        battles: [
+          { leader:'Volkner', place:'Sunyshore City', type:'electric', ace:'Electivire Lv. 50', counters:['Garchomp'] },
+          { leader:'Aaron', place:'Pokémon League', type:'bug', ace:'Drapion Lv. 53', counters:['Infernape','Staraptor'] },
+          { leader:'Bertha', place:'Pokémon League', type:'ground', ace:'Rhyperior Lv. 55', counters:['Roserade','Floatzel'] },
+          { leader:'Flint', place:'Pokémon League', type:'fire', ace:'Magmortar Lv. 57', counters:['Floatzel','Garchomp'] },
+          { leader:'Lucian', place:'Pokémon League', type:'psychic', ace:'Gallade Lv. 59', counters:['Luxray','Roserade','Staraptor'] },
+          { leader:'Cynthia', place:'Champion', type:'dragon', ace:'Garchomp Lv. 62', counters:['Floatzel','Garchomp','Infernape'] }
+        ],
+        team: [
+          { name:'Infernape', dex:392, types:['fire','fighting'], lv:'Lv. 50+',
+            loc:{ place:'Route 201', note:T('Starter Chimchar','Starter Chimchar') },
+            evo:T('Dạng cuối','Final form'),
+            ability:{ name:T('Rực Rỡ','Blaze'), desc:T('Tăng 50% sức mạnh chiêu Lửa khi HP ≤ 1/3.','Boosts Fire moves by 50% at ≤ 1/3 HP.') },
+            nature:{ name:T('Ngây Thơ','Naive'), up:'spe', down:'spd' },
+            item:{ name:T('Than Củi','Charcoal'), note:T('+20% sức mạnh chiêu Lửa.','+20% Fire move power.') },
+            moves:[ M('Phun Lửa','Flamethrower','fire','tm','TM35'), M('Cận Chiến','Close Combat','fighting','level','Lv. 41'),
+                    M('Đấm Tốc Độ','Mach Punch','fighting','level','Lv. 14'), M('Đấm Sấm Sét','ThunderPunch','electric','tutor','Tutor') ],
+            role:{ label:T('Át Chủ Bài Hỗn Hợp','Mixed Ace'), desc:T('Flamethrower 4× lên Scizor (Aaron), 2× lên Bronzong (Lucian); Close Combat hạ Drapion và Lucario của Cynthia.','Flamethrower is 4× on Aaron\'s Scizor, 2× on Lucian\'s Bronzong; Close Combat handles Drapion and Cynthia\'s Lucario.') } },
+          { name:'Staraptor', dex:398, types:['normal','flying'], lv:'Lv. 50+',
+            loc:{ place:'Route 201', note:T('Starly','Starly') },
+            evo:T('Dạng cuối','Final form'),
+            ability:{ name:T('Uy Hiếp','Intimidate'), desc:T('Giảm 1 bậc Tấn Công đối thủ khi vào sân.','Lowers foe\'s Attack by 1 stage on entry.') },
+            nature:{ name:T('Cứng Cỏi','Adamant'), up:'atk', down:'spa' },
+            item:{ name:T('Mỏ Nhọn','Sharp Beak'), note:T('+20% sức mạnh chiêu Bay.','+20% Flying move power.') },
+            moves:[ M('Chim Dũng Cảm','Brave Bird','flying','level','Lv. 49'), M('Cận Chiến','Close Combat','fighting','level','Lv. 34'),
+                    M('Quay Đầu','U-turn','bug','tm','TM89'), M('Tấn Công Nhanh','Quick Attack','normal','level','Lv. 5') ],
+            role:{ label:T('Kẻ Phá Vỡ & Pivot','Wallbreaker & Pivot'), desc:T('Brave Bird 4× lên Heracross, 2× lên Gallade; Intimidate làm suy yếu dàn vật lý của Aaron và Bertha.','Brave Bird is 4× on Heracross, 2× on Gallade; Intimidate blunts Aaron\'s and Bertha\'s physical attackers.') } },
+          { name:'Luxray', dex:405, types:['electric'], lv:'Lv. 50+',
+            loc:{ place:'Route 202', note:T('Shinx','Shinx') },
+            evo:T('Dạng cuối','Final form'),
+            ability:{ name:T('Uy Hiếp','Intimidate'), desc:T('Giảm 1 bậc Tấn Công đối thủ khi vào sân.','Lowers foe\'s Attack by 1 stage on entry.') },
+            nature:{ name:T('Cứng Cỏi','Adamant'), up:'atk', down:'spa' },
+            item:{ name:T('Nam Châm','Magnet'), note:T('+20% sức mạnh chiêu Điện.','+20% Electric move power.') },
+            moves:[ M('Nanh Sấm','Thunder Fang','electric','level','Lv. 35'), M('Nhai Nát','Crunch','dark','level','Lv. 42'),
+                    M('Đuôi Sắt','Iron Tail','steel','tm','TM23'), M('Sóng Điện','Thunder Wave','electric','tm','TM73') ],
+            role:{ label:T('Thợ Săn Siêu Linh','Psychic Hunter'), desc:T('Crunch 2× lên Espeon/Alakazam/Mr. Mime của Lucian; Thunder Fang hạ Togekiss và Milotic của Cynthia.','Crunch is 2× on Lucian\'s Espeon/Alakazam/Mr. Mime; Thunder Fang drops Cynthia\'s Togekiss and Milotic.') } },
+          { name:'Floatzel', dex:419, types:['water'], lv:'Lv. 50+',
+            loc:{ place:'Route 205', note:T('Buizel','Buizel') },
+            evo:T('Dạng cuối','Final form'),
+            ability:{ name:T('Bơi Nhanh','Swift Swim'), desc:T('Nhân đôi Tốc Độ khi trời mưa.','Doubles Speed in rain.') },
+            nature:{ name:T('Cứng Cỏi','Adamant'), up:'atk', down:'spa' },
+            item:{ name:T('Nước Thần Bí','Mystic Water'), note:T('+20% sức mạnh chiêu Nước.','+20% Water move power.') },
+            moves:[ M('Thác Nước','Waterfall','water','hm','HM07'), M('Phản Lực Nước','Aqua Jet','water','level','Lv. 21'),
+                    M('Nhai Nát','Crunch','dark','level','Lv. 26'), M('Đấm Băng','Ice Punch','ice','tutor','Tutor') ],
+            role:{ label:T('Sát Thủ Rồng & Lửa','Dragon & Fire Slayer'), desc:T('Waterfall quét đội Lửa của Flint và Golem/Rhyperior (4×) của Bertha; Ice Punch 4× lên Garchomp của Cynthia.','Waterfall sweeps Flint\'s Fire team and Bertha\'s Golem/Rhyperior (4×); Ice Punch is 4× on Cynthia\'s Garchomp.') } },
+          { name:'Roserade', dex:407, types:['grass','poison'], lv:'Lv. 50+',
+            loc:{ place:'Route 204', note:T('Budew → Roselia → Roserade (Đá Sáng, Iron Island)','Budew → Roselia → Roserade (Shiny Stone, Iron Island)') },
+            evo:T('Dạng cuối','Final form'),
+            ability:{ name:T('Tự Chữa Lành','Natural Cure'), desc:T('Tự giải trạng thái bất lợi khi rút về.','Heals status conditions when switched out.') },
+            nature:{ name:T('Nhút Nhát','Timid'), up:'spe', down:'atk' },
+            item:{ name:T('Hạt Thần Kỳ','Miracle Seed'), note:T('+20% sức mạnh chiêu Cỏ.','+20% Grass move power.') },
+            moves:[ M('Quả Cầu Năng Lượng','Energy Ball','grass','tm','TM53'), M('Bom Bùn Độc','Sludge Bomb','poison','tm','TM36'),
+                    M('Cầu Bóng Tối','Shadow Ball','ghost','tm','TM30'), M('Bào Tử Tê Liệt','Stun Spore','grass','level','Lv. 10 (Roselia)') ],
+            role:{ label:T('Pháo Đặc Biệt','Special Sweeper'), desc:T('Energy Ball 4× lên Whiscash/Golem/Rhyperior của Bertha; Shadow Ball 2× lên Alakazam/Espeon của Lucian.','Energy Ball is 4× on Bertha\'s Whiscash/Golem/Rhyperior; Shadow Ball is 2× on Lucian\'s Alakazam/Espeon.') } },
+          { name:'Garchomp', dex:445, types:['dragon','ground'], lv:'Lv. 48+',
+            loc:{ place:'Wayward Cave', note:T('Gible','Gible') },
+            evo:T('Tiến hóa cuối ở Lv. 48','Final stage at Lv. 48'),
+            ability:{ name:T('Màn Cát','Sand Veil'), desc:T('Tăng né tránh khi có bão cát.','Raises evasion in a sandstorm.') },
+            nature:{ name:T('Vui Vẻ','Jolly'), up:'spe', down:'spa' },
+            item:{ name:T('Quả Yache','Yache Berry'), note:T('Giảm 50% sát thương từ một đòn Băng siêu hiệu quả.','Halves one super-effective Ice hit.') },
+            moves:[ M('Động Đất','Earthquake','ground','tm','TM26'), M('Vuốt Rồng','Dragon Claw','dragon','tm','TM02'),
+                    M('Lưỡi Đá','Stone Edge','rock','tm','TM71'), M('Vũ Điệu Kiếm','Swords Dance','normal','tm','TM75') ],
+            role:{ label:T('Át Chủ Bài Vật Lý','Physical Ace'), desc:T('Miễn nhiễm Điện → càn quét Volkner; Earthquake trị đội Lửa của Flint; Stone Edge cho Yanmega và Togekiss.','Electric-immune → sweeps Volkner; Earthquake handles Flint\'s Fire team; Stone Edge for Yanmega and Togekiss.') } }
+        ],
+        mascot: { name:'Giratina', dex:487, types:['ghost','dragon'],
+          note:T('Tùy chọn: Giratina (Dạng Nguyên Thủy) Lv. 47 bắt được trong cốt truyện tại Distortion World. Nếu lỡ hạ gục, nó xuất hiện lại ở Turnback Cave sau khi vào Hall of Fame. Có thể thay cho Staraptor nếu muốn một tanker.','Optional: Giratina (Origin Forme) Lv. 47 is caught during the story in the Distortion World. If you knock it out, it reappears in Turnback Cave after the Hall of Fame. Can replace Staraptor if you want a tank.') }
+      }
+    }
+  }
+};
+
+/* JSON template shown to users adding a new game */
+function makeTemplate(gameName) {
+  const sampleMon = {
+    name:'PokemonName', dex:0, types:['normal'], lv:'Lv. 5 – 20',
+    loc:{ place:'Route 1', note:{ vi:'Ghi chú tiếng Việt', en:'English note' } },
+    evo:{ vi:'Chuỗi tiến hóa', en:'Evolution chain' },
+    ability:{ name:{ vi:'Tên TV', en:'Ability' }, desc:{ vi:'Mô tả', en:'Description' } },
+    nature:{ name:{ vi:'Cứng Cỏi', en:'Adamant' }, up:'atk', down:'spa' },
+    item:{ name:{ vi:'Quả Oran', en:'Oran Berry' }, note:{ vi:'', en:'' } },
+    moves:[ { name:{ vi:'Húc', en:'Tackle' }, type:'normal', method:{ k:'level', v:'Lv. 1' } } ],
+    role:{ label:{ vi:'Vai trò', en:'Role' }, desc:{ vi:'', en:'' } }
+  };
+  const phase = { levelRange:'', tip:{ vi:'', en:'' }, battles:[ { leader:'Leader', place:'City', type:'normal', ace:'Ace Lv. 10', counters:['PokemonName'] } ], team:[ sampleMon ] };
+  return { _game: gameName, phases: { early: phase, mid: phase, end: { ...phase, mascot: null } } };
+}
+</script>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useMemo, useRef, useCallback } = React;
+document.body.classList.add('grid-bg');
+const LS_GAMES = 'pwtp.customGames.v2';
+const LS_DATA  = 'pwtp.gameData.v2';
+const LS_PREFS = 'pwtp.prefs.v2';
+const lsGet = (k, fb) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fb; } catch { return fb; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+/* =====================================================================
+   AI PROMPTS + normalisation
+   ===================================================================== */
+const TYPE_KEYS = Object.keys(TYPE_COLORS);
+const METHOD_KEYS = ['level', 'tm', 'hm', 'tutor', 'relearn', 'egg', 'other'];
+const STAT_KEYS = ['atk', 'def', 'spa', 'spd', 'spe'];
+
+function genMechanics(gen) {
+  const g = Number(gen);
+  if (g === 1) return 'Generation 1: there are NO abilities, NO natures and NO held items — set "ability", "nature" and "item" to null. Use the Gen 1 type chart (no Dark/Steel/Fairy). Moves are physical/special by type.';
+  if (g === 2) return 'Generation 2: held items exist, but there are NO abilities and NO natures — set "ability" and "nature" to null. No Fairy type. Physical/special split is by type.';
+  if (g === 3) return 'Generation 3: abilities and natures exist; physical/special split is still by TYPE (e.g. all Fire moves are special). No Fairy type. No Hidden Abilities.';
+  if (g === 4 || g === 5) return `Generation ${g}: physical/special split per move exists. No Fairy type. Hidden Abilities only if obtainable in a normal playthrough of this exact game.`;
+  return 'Use the mechanics of this exact game. If a mechanic does not exist in this game (e.g. abilities or held items in Legends: Arceus or Let\'s Go), set that field to null. Mention battle gimmicks (Mega, Z-Moves, Dynamax, Terastal, Alpha) only inside the role description when relevant.';
+}
+
+const COMMON_RULES = (game) => `You are an expert on every main-series Pokémon game by Game Freak, acting as a walkthrough team planner.
+Game: "Pokémon ${game.name}" — Generation ${game.gen}, region ${game.region}, released ${game.year}.
+HARD RULES:
+- Every Pokémon must be catchable or receivable in THIS exact game (version-exclusives allowed only if available in at least one of the paired versions; say which in the location note) during a normal story playthrough, BEFORE or DURING the phase it is used in.
+- No legendary/mythical Pokémon, except the game's box mascot, which may ONLY appear as the optional "mascot" of the end phase.
+- No forced trades. If a Pokémon needs a trade to evolve, either pick something else or keep the pre-evolution and say so.
+- Learnsets, levels, TM/HM numbers, move tutors, abilities and evolution levels must match THIS game (version group), not later games. If you are not sure of an exact level, prefer a move you are sure about.
+- ${genMechanics(game.gen)}
+- If this game is unreleased or you have little reliable knowledge of it, still answer, but make the plan conservative and say so in "notes".
+BILINGUAL FORMAT: every text object is {"vi": "...", "en": "..."}. Pokémon names are ALWAYS the official English name. Place names stay in English (e.g. "Route 201"). For move/ability/nature/item names use a natural, descriptive Vietnamese translation in "vi" and the official English name in "en". Descriptions/tips: full Vietnamese in "vi", full English in "en". Keep descriptions short (one or two sentences).
+Types are lowercase English keys from: ${TYPE_KEYS.join(', ')}.`;
+
+const PHASE_DEF = `Phases:
+- "early": start of the adventure up to and including the 3rd Gym (or the first ~third of the main story's major battles: trials, nobles, Titan/Gym/Star Base milestones, rank-ups — use the game's own equivalent).
+- "mid": 4th to 7th Gym (or the middle third of major battles).
+- "end": 8th Gym, Elite Four and Champion (or the final third: final major battles and the last story boss).`;
+
+function planPrompt(game) {
+  return `${COMMON_RULES(game)}
+
+${PHASE_DEF}
+
+TASK: Plan the optimal 6-Pokémon walkthrough team for each phase. The team should evolve naturally between phases (mostly the same line, evolved), with clear type coverage against the major battles of that phase.
+Reply with ONLY one JSON object, no prose, in exactly this shape:
+{
+  "notes": {"vi": "...", "en": "..."},
+  "phases": {
+    "early": {
+      "label": {"vi": "Gym 1 – Gym 3", "en": "Gym 1 – Gym 3"},
+      "levelRange": "Lv. 5 – 25",
+      "tip": {"vi": "...", "en": "..."},
+      "battles": [ {"leader": "Roark", "place": "Oreburgh City", "type": "rock", "ace": "Cranidos Lv. 14", "counters": ["Monferno"]} ],
+      "roster": [ {"name": "Monferno", "dex": 391, "types": ["fire","fighting"]} ]
+    },
+    "mid":   { ...same keys... },
+    "end":   { ...same keys..., "mascot": {"name": "...", "dex": 0, "types": ["..."], "note": {"vi": "...", "en": "..."}} or null }
+  }
+}
+"label" names the milestones this phase covers in this game. "battles" lists every major battle of the phase in story order (3–6 entries), with the leader's ace and level from THIS game. "counters" use names from that phase's roster. "roster" has exactly 6 Pokémon in the form used during that phase (national dex number).`;
+}
+
+function phasePrompt(game, phaseKey, ph) {
+  return `${COMMON_RULES(game)}
+
+${PHASE_DEF}
+
+You already planned this team for the "${phaseKey}" phase (${ph.label?.en || ''}, ${ph.levelRange || ''}):
+${JSON.stringify(ph.roster)}
+Major battles of this phase: ${JSON.stringify((ph.battles || []).map(b => `${b.leader} (${b.type}, ace ${b.ace})`))}
+
+TASK: Give the full walkthrough build of EACH of these 6 Pokémon, as it should be set up during THIS phase (moves it can actually have by then).
+Reply with ONLY one JSON object {"team": [ ...6 objects... ]}, no prose, each team object exactly in this shape:
+{
+  "name": "Monferno", "dex": 391, "types": ["fire","fighting"], "lv": "Lv. 14 – 26",
+  "loc": {"place": "Route 201", "note": {"vi": "Pokémon khởi đầu (Chimchar)", "en": "Starter (Chimchar)"}},
+  "evo": {"vi": "Chimchar → Monferno (Lv. 14) → Infernape (Lv. 36)", "en": "Chimchar → Monferno (Lv. 14) → Infernape (Lv. 36)"},
+  "ability": {"name": {"vi": "Rực Rỡ", "en": "Blaze"}, "desc": {"vi": "...", "en": "..."}},
+  "nature": {"name": {"vi": "Ngây Thơ", "en": "Naive"}, "up": "spe", "down": "spd"},
+  "item": {"name": {"vi": "Quả Oran", "en": "Oran Berry"}, "note": {"vi": "...", "en": "..."}},
+  "moves": [ {"name": {"vi": "Đấm Tốc Độ", "en": "Mach Punch"}, "type": "fighting", "method": {"k": "level", "v": "Lv. 14"}} ],
+  "role": {"label": {"vi": "Mũi Nhọn Tấn Công", "en": "Lead Sweeper"}, "desc": {"vi": "...", "en": "..."}}
+}
+Rules for fields: "loc.place" = the EARLIEST place it can be obtained in this game (for an evolved form, where its first stage is caught). "moves" = exactly 4. "method.k" is one of ${METHOD_KEYS.join(', ')}; "method.v" is e.g. "Lv. 14", "TM35", "HM02", "Tutor", "Egg". "nature.up"/"down" are among ${STAT_KEYS.join(', ')} (neutral natures are not allowed). "item" must be obtainable by this phase. Use null for "ability"/"nature"/"item" only where the mechanic does not exist in this game. The role description must name which of this phase's battles it handles and why.`;
+}
+
+const asT = (v) => {
+  if (v == null || v === '') return null;
+  if (typeof v === 'string') return { vi: v, en: v };
+  if (typeof v === 'object' && (v.vi || v.en)) return { vi: String(v.vi || v.en), en: String(v.en || v.vi) };
+  return null;
+};
+const asType = (s) => { const k = String(s || '').toLowerCase().trim(); return TYPE_KEYS.includes(k) ? k : 'normal'; };
+function normMon(m) {
+  m = m || {};
+  const types = (Array.isArray(m.types) ? m.types : [m.types]).filter(Boolean).slice(0, 2).map(asType);
+  return {
+    name: String(m.name || '?'), dex: Number(m.dex) || 0, types: types.length ? types : ['normal'], lv: m.lv ? String(m.lv) : '',
+    loc: { place: String(m.loc?.place || ''), note: asT(m.loc?.note) },
+    evo: asT(m.evo),
+    ability: m.ability && m.ability.name ? { name: asT(m.ability.name), desc: asT(m.ability.desc) } : null,
+    nature: m.nature && m.nature.name ? { name: asT(m.nature.name), up: STAT_KEYS.includes(m.nature.up) ? m.nature.up : null, down: STAT_KEYS.includes(m.nature.down) ? m.nature.down : null } : null,
+    item: m.item && m.item.name ? { name: asT(m.item.name), note: asT(m.item.note) } : null,
+    moves: (Array.isArray(m.moves) ? m.moves : []).slice(0, 4).map(mv => ({
+      name: asT(mv?.name) || { vi: '?', en: '?' }, type: asType(mv?.type),
+      method: { k: METHOD_KEYS.includes(mv?.method?.k) ? mv.method.k : 'other', v: String(mv?.method?.v || '') }
+    })),
+    role: { label: asT(m.role?.label) || { vi: '—', en: '—' }, desc: asT(m.role?.desc) }
+  };
+}
+function normPlanPhase(p) {
+  p = p || {};
+  return {
+    label: asT(p.label), levelRange: String(p.levelRange || ''), tip: asT(p.tip),
+    battles: (Array.isArray(p.battles) ? p.battles : []).slice(0, 8).map(b => ({
+      leader: String(b?.leader || '?'), place: String(b?.place || ''), type: asType(b?.type), ace: String(b?.ace || ''),
+      counters: (Array.isArray(b?.counters) ? b.counters : []).map(String).slice(0, 4)
+    })),
+    roster: (Array.isArray(p.roster) ? p.roster : []).slice(0, 6).map(r => ({ name: String(r?.name || '?'), dex: Number(r?.dex) || 0, types: (Array.isArray(r?.types) ? r.types : [r?.types]).filter(Boolean).slice(0, 2).map(asType) })),
+    mascot: p.mascot && p.mascot.name ? { name: String(p.mascot.name), dex: Number(p.mascot.dex) || 0, types: (p.mascot.types || []).slice(0, 2).map(asType), note: asT(p.mascot.note) } : null,
+    team: null
+  };
+}
+
+/* =====================================================================
+   ENGINE 1 — free AI providers (Gemini / Groq) + free web research (Tavily)
+   Keys live only in this browser's localStorage.
+   ===================================================================== */
+const LS_CFG = 'pwtp.aiConfig.v1';
+const DEFAULT_GEMINI_MODELS = 'gemini-3.6-flash, gemini-3.5-flash-lite, gemini-3.8-flash, gemini-3.1-flash-lite';
+const DEFAULT_CFG = { provider: 'gemini', geminiKey: '', geminiModels: DEFAULT_GEMINI_MODELS, geminiSearch: false,
+  groqKey: '', groqModels: 'openai/gpt-oss-120b, openai/gpt-oss-20b', groqSearch: true, backup: true, tavilyKey: '' };
+const loadCfg = () => { const c = { ...DEFAULT_CFG, ...lsGet(LS_CFG, {}) };
+  if (c.geminiModel && !lsGet(LS_CFG, {}).geminiModels) c.geminiModels = [c.geminiModel, ...DEFAULT_GEMINI_MODELS.split(',').map(s => s.trim()).filter(m => m !== c.geminiModel)].join(', ');
+  if (c.groqModel && !lsGet(LS_CFG, {}).groqModels) c.groqModels = c.groqModel; return c; };
+const modelList = (s) => String(s || '').split(/[,\n]/).map(x => x.trim()).filter(Boolean);
+
+class LLMError extends Error { constructor(code, message, status, extra) { super(message); this.code = code; this.status = status; Object.assign(this, extra || {}); } }
+
+function parseJSONLoose(text) {
+  if (!text) throw new LLMError('invalid_json', 'empty');
+  let s = String(text).trim();
+  const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i); if (fence) s = fence[1].trim();
+  try { return JSON.parse(s); } catch {}
+  const a = s.indexOf('{'), b = s.lastIndexOf('}');
+  if (a >= 0 && b > a) { try { return JSON.parse(s.slice(a, b + 1)); } catch {} }
+  throw new LLMError('invalid_json', 'Could not parse JSON');
+}
+
+async function httpJSON(url, opts) {
+  let r;
+  try { r = await fetch(url, opts); }
+  catch (e) { if (e.name === 'AbortError') throw new LLMError('cancelled', 'cancelled'); throw new LLMError('network', e.message || 'network'); }
+  let j = null; try { j = await r.json(); } catch {}
+  if (!r.ok) {
+    const msg = String(j?.error?.message || j?.message || j?.detail || `HTTP ${r.status}`);
+    const details = Array.isArray(j?.error?.details) ? j.error.details : [];
+    let retryMs = 0;
+    const ri = details.find(d => /RetryInfo/.test(d['@type'] || ''));
+    if (ri?.retryDelay) retryMs = Math.ceil(parseFloat(ri.retryDelay) * 1000) || 0;
+    const ra = r.headers.get('retry-after'); if (!retryMs && ra && !isNaN(+ra)) retryMs = +ra * 1000;
+    const m = msg.match(/try again in ([\d.]+)\s*(ms|s|m)/i); if (!retryMs && m) retryMs = parseFloat(m[1]) * (m[2] === 'ms' ? 1 : m[2] === 'm' ? 60000 : 1000);
+    const quotaIds = details.flatMap(d => (d.violations || []).map(v => String(v.quotaId || v.quotaMetric || ''))).join(' ');
+    const daily = /PerDay|per day|RPD|TPD|daily/i.test(quotaIds + ' ' + msg);
+    let code = 'http';
+    if (r.status === 429) code = daily ? 'quota_day' : 'rate_limited';
+    else if (r.status === 503 || r.status === 500 || r.status === 502 || r.status === 504 || /high demand|overloaded|UNAVAILABLE/i.test(msg)) code = 'overloaded';
+    else if (r.status === 401 || r.status === 403) code = 'auth';
+    else if (r.status === 404) code = 'not_found';
+    throw new LLMError(code, msg, r.status, { retryMs });
+  }
+  return j;
+}
+
+async function callGemini(cfg, prompt, { signal, search, model }) {
+  const body = { contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 32768 } };
+  if (search) body.tools = [{ google_search: {} }]; else body.generationConfig.responseMimeType = 'application/json';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+  const j = await httpJSON(url, { method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': cfg.geminiKey }, body: JSON.stringify(body), signal });
+  const cand = j?.candidates?.[0];
+  const text = (cand?.content?.parts || []).map(p => p.text || '').join('');
+  if (!text) throw new LLMError('empty', cand?.finishReason || 'empty response');
+  const sources = (cand?.groundingMetadata?.groundingChunks || []).map(c => c.web).filter(Boolean).map(w => ({ title: w.title || w.uri, url: w.uri }));
+  return { text, sources, truncated: cand?.finishReason === 'MAX_TOKENS' };
+}
+
+async function callGroq(cfg, prompt, { signal, search, model }) {
+  const body = { model, messages: [{ role: 'user', content: prompt }], temperature: 0.2, max_completion_tokens: 8192 };
+  if (search) body.tools = [{ type: 'browser_search' }]; else body.response_format = { type: 'json_object' };
+  const j = await httpJSON('https://api.groq.com/openai/v1/chat/completions', { method: 'POST', headers: { 'content-type': 'application/json', Authorization: 'Bearer ' + cfg.groqKey }, body: JSON.stringify(body), signal });
+  const msg = j?.choices?.[0]?.message;
+  const text = msg?.content || '';
+  if (!text) throw new LLMError('empty', 'empty response');
+  const sources = [];
+  (msg?.executed_tools || []).forEach(tl => (tl?.search_results?.results || []).forEach(r => r?.url && sources.push({ title: r.title || r.url, url: r.url })));
+  return { text, sources, truncated: j?.choices?.[0]?.finish_reason === 'length' };
+}
+
+const SEARCH_REFUSED = {};
+const EXHAUSTED = {};
+const OVERLOADED = {};           /* model -> time it last answered "high demand" */
+const LAST_OK = { key: '' };            /* model -> time its daily quota ran out (skip for this session) */
+const sleep = (ms, signal) => new Promise((res, rej) => { const id = setTimeout(res, ms); signal?.addEventListener('abort', () => { clearTimeout(id); rej(new LLMError('cancelled', 'cancelled')); }, { once: true }); });
+
+/* Build the ordered list of (provider, model) attempts: chosen provider's models, then the other provider as backup */
+function attemptChain(cfg) {
+  const gem = cfg.geminiKey ? modelList(cfg.geminiModels).map(m => ({ provider: 'gemini', model: m })) : [];
+  const grq = cfg.groqKey ? modelList(cfg.groqModels).map(m => ({ provider: 'groq', model: m })) : [];
+  let chain = cfg.provider === 'groq' ? [...grq, ...(cfg.backup ? gem : [])] : [...gem, ...(cfg.backup ? grq : [])];
+  chain = chain.filter(a => !EXHAUSTED[a.provider + ':' + a.model]);
+  /* the model that last answered goes first; models that were overloaded in the last 5 minutes go last */
+  const k = (a) => a.provider + ':' + a.model, now = Date.now();
+  const rank = (a) => k(a) === LAST_OK.key ? -1 : (OVERLOADED[k(a)] && now - OVERLOADED[k(a)] < 300000) ? 1 : 0;
+  return chain.map((a, i) => ({ a, i })).sort((x, y) => rank(x.a) - rank(y.a) || x.i - y.i).map(x => x.a);
+}
+
+/* One JSON call. Tries each model in turn on overload / quota errors, waits once on a short per-minute limit. */
+async function askJSON(cfg, prompt, { signal, useSearch = true, sampleFn, onAttempt } = {}) {
+  if (cfg.provider === 'claude') {
+    if (!sampleFn) throw new LLMError('no_provider', 'Claude not available');
+    try { return { json: await sampleFn.json(prompt, { modelTier: 'complex', signal }), sources: [], note: '', used: 'Claude' }; }
+    catch (e) { throw new LLMError(e?.code === 'rate_limited' ? 'rate_limited' : e?.code || 'http', e?.message || 'Claude error'); }
+  }
+  const chain = attemptChain(cfg);
+  if (!chain.length) throw new LLMError(Object.keys(EXHAUSTED).length ? 'quota_day' : 'no_provider', 'no model left');
+  let lastErr = null, note = '';
+  for (const a of chain) {
+    const call = a.provider === 'groq' ? callGroq : callGemini;
+    const label = `${a.provider === 'groq' ? 'Groq' : 'Gemini'} · ${a.model}`;
+    const wantSearch = useSearch && (a.provider === 'groq' ? cfg.groqSearch : cfg.geminiSearch) && !SEARCH_REFUSED[a.provider];
+    let waited = false;
+    for (let tries = 0; tries < 3; tries++) {
+      onAttempt?.(label);
+      try {
+        const res = await call(cfg, prompt, { signal, search: wantSearch && tries === 0, model: a.model });
+        const json = parseJSONLoose(res.text); LAST_OK.key = a.provider + ':' + a.model; delete OVERLOADED[LAST_OK.key];
+        return { json, sources: res.sources, note, used: label, truncated: res.truncated };
+      } catch (e) {
+        if (e.code === 'cancelled' || e.code === 'auth') throw e;
+        lastErr = e;
+        if (wantSearch && tries === 0 && (e.code === 'http' || e.code === 'not_found')) { SEARCH_REFUSED[a.provider] = true; note = 'search_off'; continue; }
+        if (e.code === 'invalid_json' && tries === 0) continue;                          /* one re-ask on malformed JSON */
+        if (e.code === 'rate_limited' && !waited && e.retryMs && e.retryMs <= 45000) {  /* short per-minute limit: wait once */
+          waited = true; onAttempt?.(`${label} · ${Math.ceil(e.retryMs / 1000)}s…`); await sleep(e.retryMs + 500, signal); continue;
+        }
+        if (e.code === 'quota_day') EXHAUSTED[a.provider + ':' + a.model] = Date.now();
+        if (e.code === 'overloaded') OVERLOADED[a.provider + ':' + a.model] = Date.now();
+        break;                                                                            /* overloaded / quota / not found → next model */
+      }
+    }
+  }
+  throw lastErr || new LLMError('http', 'all models failed');
+}
+
+async function listGeminiModels(key) {
+  const j = await httpJSON('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': key } });
+  return (j.models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent') && /gemini/i.test(m.name) && !/image|tts|audio|live|embedding/i.test(m.name))
+    .map(m => m.name.replace(/^models\//, ''));
+}
+
+async function tavilySearch(key, query, signal) {
+  const j = await httpJSON('https://api.tavily.com/search', { method: 'POST', signal, headers: { 'content-type': 'application/json', Authorization: 'Bearer ' + key },
+    body: JSON.stringify({ query, max_results: 5, search_depth: 'basic', include_domains: ['bulbapedia.bulbagarden.net', 'serebii.net', 'pokemondb.net', 'game8.co'] }) });
+  return (j.results || []).map(r => ({ title: r.title, url: r.url, content: String(r.content || '').slice(0, 900) }));
+}
+
+/* =====================================================================
+   ENGINE 2 — PokéAPI verification (free, no key) — the accuracy layer
+   ===================================================================== */
+const PA = 'https://pokeapi.co/api/v2/';
+const GAME_PA = {
+  rby:{ vg:['red-blue'], v:['red','blue'] }, yellow:{ vg:['yellow'], v:['yellow'] }, gs:{ vg:['gold-silver'], v:['gold','silver'] }, crystal:{ vg:['crystal'], v:['crystal'] },
+  rs:{ vg:['ruby-sapphire'], v:['ruby','sapphire'] }, frlg:{ vg:['firered-leafgreen'], v:['firered','leafgreen'] }, emerald:{ vg:['emerald'], v:['emerald'] },
+  dp:{ vg:['diamond-pearl'], v:['diamond','pearl'] }, platinum:{ vg:['platinum'], v:['platinum'] }, hgss:{ vg:['heartgold-soulsilver'], v:['heartgold','soulsilver'] },
+  bw:{ vg:['black-white'], v:['black','white'] }, b2w2:{ vg:['black-2-white-2'], v:['black-2','white-2'] }, xy:{ vg:['x-y'], v:['x','y'] },
+  oras:{ vg:['omega-ruby-alpha-sapphire'], v:['omega-ruby','alpha-sapphire'] }, sm:{ vg:['sun-moon'], v:['sun','moon'] }, usum:{ vg:['ultra-sun-ultra-moon'], v:['ultra-sun','ultra-moon'] },
+  lgpe:{ vg:['lets-go-pikachu-lets-go-eevee'], v:['lets-go-pikachu','lets-go-eevee'] }, swsh:{ vg:['sword-shield'], v:['sword','shield'] },
+  bdsp:{ vg:['brilliant-diamond-shining-pearl','brilliant-diamond-and-shining-pearl'], v:['brilliant-diamond','shining-pearl'] },
+  pla:{ vg:['legends-arceus'], v:['legends-arceus'] }, sv:{ vg:['scarlet-violet'], v:['scarlet','violet'] }, plza:{ vg:['legends-za'], v:['legends-za'] }
+};
+const GEN_NUM = { 'generation-i':1,'generation-ii':2,'generation-iii':3,'generation-iv':4,'generation-v':5,'generation-vi':6,'generation-vii':7,'generation-viii':8,'generation-ix':9 };
+const normKey = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const prettyName = (slug) => String(slug || '').split('-').map(w => w ? w[0].toUpperCase() + w.slice(1) : w).join(' ');
+
+const paMem = new Map();
+async function paGet(path, signal) {
+  const url = path.startsWith('http') ? path : PA + path;
+  if (paMem.has(url)) return paMem.get(url);
+  const p = (async () => {
+    let r; try { r = await fetch(url, { signal }); } catch (e) { throw new LLMError(e.name === 'AbortError' ? 'cancelled' : 'pa_network', 'PokéAPI unreachable'); }
+    if (r.status === 404) return null;
+    if (!r.ok) throw new LLMError('pa_http', 'PokéAPI ' + r.status);
+    return r.json();
+  })();
+  paMem.set(url, p); p.catch(() => paMem.delete(url));
+  return p;
+}
+/* small persistent cache of trimmed results */
+const paCacheGet = (k) => lsGet('pa:' + k, null);
+const paCacheSet = (k, v) => lsSet('pa:' + k, v);
+
+function slugCandidates(name) {
+  let n = String(name || '').trim();
+  const forms = [['Alolan ', '-alola'], ['Galarian ', '-galar'], ['Hisuian ', '-hisui'], ['Paldean ', '-paldea']];
+  let suffix = '';
+  for (const [pre, suf] of forms) if (n.startsWith(pre)) { n = n.slice(pre.length); suffix = suf; }
+  const base = n.toLowerCase().replace(/♀/g, '-f').replace(/♂/g, '-m').replace(/[éè]/g, 'e').replace(/[’'.:%]/g, '').trim().replace(/\s+/g, '-');
+  return suffix ? [base + suffix, base] : [base];
+}
+
+/* Resolve a Pokémon and trim its data to one version group */
+async function paPokemon(name, gameId, signal) {
+  const map = GAME_PA[gameId]; if (!map) return null;
+  const ck = 'pk:' + normKey(name) + ':' + gameId; const cached = paCacheGet(ck); if (cached) return cached;
+  let pk = null;
+  for (const slug of slugCandidates(name)) {
+    pk = await paGet('pokemon/' + slug, signal);
+    if (pk) break;
+    const sp = await paGet('pokemon-species/' + slug, signal);
+    const def = sp?.varieties?.find(v => v.is_default)?.pokemon?.url;
+    if (def) { pk = await paGet(def, signal); if (pk) break; }
+  }
+  if (!pk) return null;
+  const species = await paGet(pk.species.url, signal);
+  const vgs = new Set(map.vg);
+  const moves = [];
+  for (const m of pk.moves || []) {
+    const d = (m.version_group_details || []).filter(x => vgs.has(x.version_group.name)).map(x => [x.move_learn_method.name, x.level_learned_at]);
+    if (d.length) moves.push({ n: m.move.name, d });
+  }
+  const trimmed = {
+    id: pk.id, name: pk.name, dex: species?.id || pk.id,
+    types: pk.types.map(t => t.type.name), pastTypes: (pk.past_types || []).map(p => ({ g: GEN_NUM[p.generation.name] || 0, t: p.types.map(t => t.type.name) })),
+    abilities: pk.abilities.map(a => ({ n: a.ability.name, h: a.is_hidden, s: a.slot })),
+    pastAbilities: (pk.past_abilities || []).map(p => ({ g: GEN_NUM[p.generation.name] || 0, a: p.abilities.map(a => ({ n: a.ability?.name || null, h: a.is_hidden, s: a.slot })) })),
+    evolvesFrom: species?.evolves_from_species?.name || null, hasVG: moves.length > 0, moves
+  };
+  paCacheSet(ck, trimmed);
+  return trimmed;
+}
+
+function typesForGen(p, gen) {
+  const past = (p.pastTypes || []).filter(x => gen <= x.g).sort((a, b) => a.g - b.g)[0];
+  return past ? past.t : p.types;
+}
+function abilitiesForGen(p, gen) {
+  let list = p.abilities.map(a => ({ ...a }));
+  (p.pastAbilities || []).filter(x => gen <= x.g).sort((a, b) => b.g - a.g).forEach(x => {
+    x.a.forEach(pa => { list = list.filter(a => a.s !== pa.s); if (pa.n) list.push(pa); });
+  });
+  if (gen < 5) list = list.filter(a => !a.h);
+  return list;
+}
+
+async function paMachine(moveName, gameId, signal) {
+  const ck = 'mc:' + moveName + ':' + gameId; const c = paCacheGet(ck); if (c !== null) return c;
+  const mv = await paGet('move/' + moveName, signal); const vgs = new Set(GAME_PA[gameId].vg);
+  const m = (mv?.machines || []).find(x => vgs.has(x.version_group.name));
+  let label = '';
+  if (m) { const mc = await paGet(m.machine.url, signal); label = String(mc?.item?.name || '').toUpperCase(); }
+  paCacheSet(ck, label); return label;
+}
+async function paMoveType(moveName, signal) {
+  const ck = 'mt:' + moveName; const c = paCacheGet(ck); if (c) return c;
+  const mv = await paGet('move/' + moveName, signal); const t = mv?.type?.name || ''; if (t) paCacheSet(ck, t); return t;
+}
+
+const ENC_METHOD = { walk: T('cỏ / hang', 'grass / cave'), surf: T('lướt sóng', 'surfing'), 'old-rod': T('Cần Câu Cũ', 'Old Rod'), 'good-rod': T('Cần Câu Tốt', 'Good Rod'),
+  'super-rod': T('Cần Câu Siêu', 'Super Rod'), gift: T('quà tặng', 'gift'), 'gift-egg': T('trứng quà tặng', 'gift egg'), 'rock-smash': T('đập đá', 'Rock Smash'),
+  headbutt: T('húc cây', 'Headbutt'), 'only-one': T('gặp một lần', 'one-time encounter') };
+async function paEncounters(p, gameId, signal) {
+  const ck = 'en:' + p.name + ':' + gameId; const c = paCacheGet(ck); if (c) return c;
+  const versions = new Set(GAME_PA[gameId].v); const out = [];
+  let cur = p, hops = 0;
+  while (cur && hops < 3) {
+    const list = await paGet(`pokemon/${cur.id}/encounters`, signal) || [];
+    for (const e of list) for (const vd of e.version_details || []) {
+      if (!versions.has(vd.version.name)) continue;
+      for (const d of vd.encounter_details || []) out.push({ who: cur.name, area: e.location_area.name, min: d.min_level, max: d.max_level, method: d.method.name, version: vd.version.name });
+    }
+    if (!cur.evolvesFrom) break;
+    cur = await paPokemon(cur.evolvesFrom, gameId, signal); hops++;
+  }
+  out.sort((a, b) => a.min - b.min);
+  const seen = new Set(); const top = [];
+  for (const o of out) { const k = o.who + o.area; if (seen.has(k)) continue; seen.add(k); top.push(o); if (top.length >= 3) break; }
+  paCacheSet(ck, top); return top;
+}
+const prettyArea = (a) => prettyName(String(a).replace(/-area$/, '').replace(/^(kanto|johto|hoenn|sinnoh|unova|kalos|alola|galar|paldea|hisui)-/, ''));
+
+/* Verify one Pokémon in place. Returns { bad: [moveIndex...] } */
+async function verifyMon(mon, game, signal) {
+  const gen = Number(game.gen) || 9;
+  const p = await paPokemon(mon.name, game.id, signal);
+  if (!p) { mon.verify = { status: 'unknown' }; return { bad: [] }; }
+  mon.dex = p.dex || mon.dex;
+  mon.types = typesForGen(p, gen);
+  const v = { status: p.hasVG ? 'ok' : 'novg', paName: p.name, moves: [], ability: null, loc: null };
+  if (!p.hasVG) { mon.verify = v; return { bad: [] }; }
+  const bad = [];
+  for (let i = 0; i < (mon.moves || []).length; i++) {
+    const mv = mon.moves[i]; const key = normKey(mv.name?.en);
+    const hit = p.moves.find(m => normKey(m.n) === key);
+    if (!hit) { v.moves[i] = 'bad'; bad.push(i); continue; }
+    const by = Object.fromEntries(hit.d.map(([m, l]) => [m, l]));
+    let k, val = '';
+    const prefer = mv.method?.k;
+    if (prefer === 'tm' || prefer === 'hm') { if ('machine' in by) k = 'machine'; }
+    if (!k) k = ['level-up', 'machine', 'tutor', 'egg'].find(x => x in by) || hit.d[0][0];
+    if (k === 'level-up') { const lv = Math.min(...hit.d.filter(d => d[0] === 'level-up').map(d => d[1])); mv.method = { k: lv <= 1 ? 'level' : 'level', v: lv <= 1 ? 'Lv. 1' : 'Lv. ' + lv }; }
+    else if (k === 'machine') { val = await paMachine(hit.n, game.id, signal); mv.method = { k: /^HM/.test(val) ? 'hm' : 'tm', v: val || 'TM' }; }
+    else if (k === 'tutor') mv.method = { k: 'tutor', v: 'Tutor' };
+    else if (k === 'egg') mv.method = { k: 'egg', v: 'Egg' };
+    else mv.method = { k: 'other', v: prettyName(k) };
+    const t = await paMoveType(hit.n, signal); if (t && gen >= 2) mv.type = (gen < 6 && t === 'fairy') ? mv.type : t;
+    v.moves[i] = 'ok';
+  }
+  if (gen >= 3 && mon.ability) {
+    const valid = abilitiesForGen(p, gen);
+    const ok = valid.some(a => normKey(a.n) === normKey(mon.ability.name?.en));
+    v.ability = { ok, valid: valid.map(a => prettyName(a.n) + (a.h ? ' (HA)' : '')) };
+  }
+  try {
+    const enc = await paEncounters(p, game.id, signal);
+    v.loc = enc.length ? enc.map(e => ({ who: prettyName(e.who), area: prettyArea(e.area), lv: e.min === e.max ? `Lv. ${e.min}` : `Lv. ${e.min}–${e.max}`, method: ENC_METHOD[e.method] || T(prettyName(e.method), prettyName(e.method)) })) : [];
+  } catch (e) { if (e.code === 'cancelled') throw e; v.loc = null; }
+  mon.verify = v;
+  return { bad, p };
+}
+
+/* Legal-move digest for the repair prompt */
+function learnsetDigest(p) {
+  const lv = [], tm = [], tu = [];
+  for (const m of p.moves) for (const [k, l] of m.d) { if (k === 'level-up') lv.push(`${prettyName(m.n)} (Lv ${l})`); else if (k === 'machine') tm.push(prettyName(m.n)); else if (k === 'tutor') tu.push(prettyName(m.n)); }
+  return `Level-up: ${[...new Set(lv)].join(', ')}\nTM/HM: ${[...new Set(tm)].join(', ')}\nTutor: ${[...new Set(tu)].join(', ') || '—'}`;
+}
+
+function repairPrompt(game, phaseKey, items) {
+  return `${COMMON_RULES(game)}
+
+Some moves you chose for the "${phaseKey}" phase CANNOT be learned in Pokémon ${game.name} according to PokéAPI. For each listed slot, pick a replacement from that Pokémon's LEGAL learnset below that fits its role and that it can realistically have during this phase.
+${items.map(it => `### ${it.name}\nRole: ${it.role}\nKeep: ${it.keep.join(', ') || '—'}\nReplace: ${it.badMoves.join(', ')}\n${it.digest}`).join('\n\n')}
+
+Reply with ONLY one JSON object: {"fixes": [{"name": "Monferno", "replace": "Fire Punch", "with": {"vi": "Bánh Xe Lửa", "en": "Flame Wheel"}, "type": "fire"}]}. Use the official English move name in "with.en" exactly as in the legal list.`;
+}
+
+const UI = {
+  vi: {
+    title:'Walkthrough & Team Planner', subtitle:'Chọn phiên bản — AI miễn phí tra cứu và lập đội hình, rồi PokéAPI xác minh từng chiêu, cấp học, tính trạng và vị trí bắt.',
+    game:'Phiên bản game', addGame:'Thêm mùa game mới', gen:'Gen', phases:{ early:'Early Game', mid:'Mid Game', end:'End Game' },
+    phaseSub:{ early:'Gym 1 – Gym 3', mid:'Gym 4 – Gym 7', end:'Gym 8 · Elite Four · Champion' },
+    location:'Vị trí bắt sớm nhất', ability:'Tính trạng', nature:'Bản tính', item:'Vật phẩm', moves:'Bộ chiêu thức', role:'Vai trò chiến thuật',
+    keyBattles:'Trận đấu then chốt', counters:'Khắc chế', strategy:'Chiến thuật giai đoạn', levels:'Mức cấp độ',
+    coverage:'Phân bố hệ của đội', mascot:'Slot Mascot (tùy chọn)', noMech:'Không có ở thế hệ này',
+    method:{ level:'Lên cấp', tm:'TM', hm:'HM', tutor:'Gia sư', relearn:'Nhớ lại', egg:'Trứng', other:'Khác' },
+    modal:{ title:'Thêm mùa game mới', nameEn:'Tên game (tiếng Anh)', gen:'Thế hệ (Gen)', region:'Vùng', year:'Năm phát hành',
+      hint:'Sau khi lưu, AI sẽ tự lập đội hình cho game này.', save:'Lưu & tạo đội hình', cancel:'Hủy', reqName:'Vui lòng nhập tên game.' },
+    custom:'Do bạn thêm', remove:'Xóa game này', confirmRemove:'Bấm lần nữa để xóa', builtIn:'Dữ liệu đã kiểm chứng', aiBadge:'AI tạo tự động',
+    team:'Đội hình', mons:'Pokémon',
+    gen_title:'Đang tra cứu & lập đội hình', gen_research:'Tìm web (Tavily)', gen_plan:'Lập kế hoạch đội hình & trận then chốt', gen_phase:'Build + xác minh',
+    gen_wait:'Đang chờ', gen_run:'Đang tạo', gen_verify:'Xác minh PokéAPI', gen_done:'Xong', gen_err:'Lỗi', gen_skip:'Bỏ qua', stop:'Dừng', retry:'Thử lại', regenerate:'Tạo lại',
+    gen_note:'Mỗi bước mất khoảng 10–60 giây. Kết quả được lưu trên trình duyệt này.',
+    needCfg:'Cần cấu hình AI miễn phí', needCfgSub:'Dán API key miễn phí của Gemini hoặc Groq (mất khoảng 1 phút để lấy). Key chỉ lưu trên trình duyệt của bạn.',
+    openCfg:'Cấu hình AI', idleTitle:'Chưa có dữ liệu cho phiên bản này', idleSub:'Bấm để AI tra cứu và lập đội hình 3 giai đoạn, rồi PokéAPI xác minh.', startGen:'Tra cứu & tạo đội hình',
+    err:{ auth:'API key không hợp lệ hoặc không có quyền. Kiểm tra lại trong Cấu hình AI.', rate_limited:'Vượt giới hạn lượt/phút của gói free ở mọi model đã thử. Đợi 1 phút rồi bấm Thử lại.',
+      overloaded:'Máy chủ Google đang quá tải ("high demand") ở mọi model đã thử. Đây là lỗi phía Google, không phải do key của bạn. Thêm key Groq làm dự phòng trong Cấu hình AI, hoặc thử lại sau.',
+      quota_day:'Đã hết lượt miễn phí trong ngày của các model đã thử (hạn mức reset lúc 15:00 giờ Việt Nam). Thêm key Groq làm dự phòng, hoặc đợi sang ngày mới.', not_found:'Model không tồn tại hoặc key của bạn không dùng được model này. Bấm "Tải danh sách model" trong Cấu hình AI.',
+      network:'Không kết nối được tới dịch vụ AI. Kiểm tra mạng hoặc tiện ích chặn quảng cáo. Nếu đang mở file trực tiếp trên máy, hãy dùng start.bat hoặc bản GitHub Pages.', invalid_json:'AI trả về dữ liệu sai định dạng. Bấm Thử lại.',
+      bad_shape:'AI trả về thiếu dữ liệu. Bấm Thử lại.', empty:'AI không trả lời. Bấm Thử lại.', http:'Dịch vụ AI báo lỗi: ', no_provider:'Chưa cấu hình nhà cung cấp AI.' },
+    aiDisclaimer:'Đội hình do AI lập. Chiêu thức, cấp học, số TM, hệ, tính trạng và vị trí bắt đã được đối chiếu với PokéAPI; mục nào không xác minh được sẽ được đánh dấu.',
+    exportJson:'Xuất JSON', importJson:'Nhập JSON', imported:'Đã nhập dữ liệu.', badJson:'File JSON không hợp lệ hoặc thiếu "phases".',
+    generatedAt:'Tạo lúc', verifyBtn:'Xác minh bằng PokéAPI', verifying:'Đang xác minh…', verified:'PokéAPI', verifiedOf:'chiêu hợp lệ',
+    vOk:'Đã xác minh với PokéAPI', vBad:'Không học được trong bản này (PokéAPI)', vUnknown:'Không tìm thấy trên PokéAPI', vNoVG:'PokéAPI chưa có dữ liệu cho bản này',
+    abilityBad:'Không có trong bản này. Hợp lệ:', encFound:'PokéAPI ghi nhận', encNone:'Không có dữ liệu gặp hoang dã (có thể là quà tặng, starter hoặc tiến hóa)', paOffline:'Không kết nối được PokéAPI',
+    sources:'Nguồn tra cứu', searchOff:'Tìm web bị từ chối với key này, đã chạy không tìm web.',
+    cfg:{ title:'Cấu hình AI miễn phí', provider:'Nhà cung cấp AI', gemini:'Google Gemini (free)', groq:'Groq · gpt-oss-120b (free)', claude:'Claude (khi mở trên claude.ai)',
+      key:'API key', model:'Model', loadModels:'Tải danh sách model', search:'Bật tìm web trong AI', geminiSearchNote:'Google Search grounding: key free mới thường không được dùng, sẽ tự tắt nếu bị từ chối.',
+      groqSearchNote:'Browser search có sẵn cho gpt-oss trên Groq; tự tắt nếu bị từ chối.', tavily:'Tavily API key (tùy chọn, 1.000 lượt/tháng free)',
+      tavilyNote:'Tavily tìm Bulbapedia / Serebii / PokémonDB và đưa kết quả cho AI. Để trống nếu không dùng.', getKey:'Lấy key miễn phí', save:'Lưu', cancel:'Hủy',
+      models_order:'Thứ tự model (tự chuyển khi model quá tải / hết lượt)', models_hint:'Cách nhau bằng dấu phẩy. Bấm "Tải danh sách model" để lấy đúng tên model key của bạn dùng được.',
+      backup:'Dùng nhà cung cấp còn lại làm dự phòng', backupNote:'Khi mọi model Gemini đều quá tải hoặc hết lượt, tự chuyển sang Groq (và ngược lại).',
+      privacy:'Key chỉ lưu trong trình duyệt này. Lưu ý: dữ liệu gửi tới gói free của Gemini có thể được Google dùng để cải thiện sản phẩm.', models:'model khả dụng' },
+    footer:'Tên chiêu/tính trạng tiếng Việt là bản dịch mô tả (không có bản địa hóa chính thức). Dữ liệu xác minh: PokéAPI (pokeapi.co).'
+  },
+  en: {
+    title:'Walkthrough & Team Planner', subtitle:'Pick a version — a free AI researches and plans the team, then PokéAPI checks every move, level, ability and encounter.',
+    game:'Game version', addGame:'Add new game', gen:'Gen', phases:{ early:'Early Game', mid:'Mid Game', end:'End Game' },
+    phaseSub:{ early:'Gym 1 – Gym 3', mid:'Gym 4 – Gym 7', end:'Gym 8 · Elite Four · Champion' },
+    location:'Earliest encounter', ability:'Ability', nature:'Nature', item:'Held item', moves:'Moveset', role:'Tactical role',
+    keyBattles:'Key battles', counters:'Counters', strategy:'Phase strategy', levels:'Level range',
+    coverage:'Team type spread', mascot:'Mascot slot (optional)', noMech:'Not in this generation',
+    method:{ level:'Level', tm:'TM', hm:'HM', tutor:'Tutor', relearn:'Relearn', egg:'Egg', other:'Other' },
+    modal:{ title:'Add a new game', nameEn:'Game title (English)', gen:'Generation', region:'Region', year:'Release year',
+      hint:'After saving, the AI builds the teams for this game automatically.', save:'Save & build teams', cancel:'Cancel', reqName:'Please enter a game title.' },
+    custom:'User-added', remove:'Remove this game', confirmRemove:'Click again to remove', builtIn:'Verified data', aiBadge:'AI-generated',
+    team:'Team', mons:'Pokémon',
+    gen_title:'Researching & building teams', gen_research:'Web search (Tavily)', gen_plan:'Plan teams & key battles', gen_phase:'Build + verify',
+    gen_wait:'Waiting', gen_run:'Working', gen_verify:'PokéAPI check', gen_done:'Done', gen_err:'Error', gen_skip:'Skipped', stop:'Stop', retry:'Retry', regenerate:'Regenerate',
+    gen_note:'Each step takes about 10–60 seconds. Results are saved in this browser.',
+    needCfg:'Set up a free AI first', needCfgSub:'Paste a free Gemini or Groq API key (takes about a minute to get). The key stays in your browser.',
+    openCfg:'AI settings', idleTitle:'No data for this version yet', idleSub:'Press to have the AI research and plan all three phases, then verify with PokéAPI.', startGen:'Research & build teams',
+    err:{ auth:'The API key is invalid or not allowed. Check it in AI settings.', rate_limited:'Hit the free per-minute limit on every model tried. Wait a minute, then press Retry.',
+      overloaded:'Google\'s servers are overloaded ("high demand") on every model tried. This is on Google\'s side, not your key. Add a Groq key as backup in AI settings, or try later.',
+      quota_day:'The daily free quota is used up on every model tried (resets at midnight Pacific time). Add a Groq key as backup, or wait for the reset.', not_found:'Model not found, or your key can\'t use it. Press "Load model list" in AI settings.',
+      network:'Couldn\'t reach the AI service. Check your connection or ad blocker. If you opened the file directly from disk, use start.bat or the GitHub Pages version.', invalid_json:'The AI returned malformed data. Press Retry.',
+      bad_shape:'The AI returned incomplete data. Press Retry.', empty:'The AI gave no answer. Press Retry.', http:'The AI service returned an error: ', no_provider:'No AI provider is set up.' },
+    aiDisclaimer:'Team planned by AI. Moves, learn levels, TM numbers, types, abilities and encounters were checked against PokéAPI; anything that couldn\'t be verified is flagged.',
+    exportJson:'Export JSON', importJson:'Import JSON', imported:'Data imported.', badJson:'Invalid JSON file or missing "phases".',
+    generatedAt:'Generated', verifyBtn:'Verify with PokéAPI', verifying:'Verifying…', verified:'PokéAPI', verifiedOf:'moves legal',
+    vOk:'Verified with PokéAPI', vBad:'Not learnable in this game (PokéAPI)', vUnknown:'Not found on PokéAPI', vNoVG:'PokéAPI has no data for this game yet',
+    abilityBad:'Not available in this game. Valid:', encFound:'PokéAPI records', encNone:'No wild encounter data (may be a gift, starter or evolution)', paOffline:'Couldn\'t reach PokéAPI',
+    sources:'Research sources', searchOff:'Web search was refused for this key, so it ran without search.',
+    cfg:{ title:'Free AI settings', provider:'AI provider', gemini:'Google Gemini (free)', groq:'Groq · gpt-oss-120b (free)', claude:'Claude (when opened on claude.ai)',
+      key:'API key', model:'Model', loadModels:'Load model list', search:'Enable web search in the AI', geminiSearchNote:'Google Search grounding: new free keys usually can\'t use it; it switches off automatically if refused.',
+      groqSearchNote:'Browser search is built into gpt-oss on Groq; switches off automatically if refused.', tavily:'Tavily API key (optional, 1,000 free calls/month)',
+      tavilyNote:'Tavily searches Bulbapedia / Serebii / PokémonDB and hands the results to the AI. Leave empty to skip.', getKey:'Get a free key', save:'Save', cancel:'Cancel',
+      models_order:'Model order (switches automatically on overload / quota)', models_hint:'Comma-separated. Press "Load model list" to get the exact names your key can use.',
+      backup:'Use the other provider as backup', backupNote:'When every Gemini model is overloaded or out of quota, switch to Groq automatically (and vice versa).',
+      privacy:'Keys are stored only in this browser. Note: data sent to Gemini\'s free tier may be used by Google to improve its products.', models:'models available' },
+    footer:'Vietnamese move/ability names are descriptive translations (no official Vietnamese localization exists). Verification data: PokéAPI (pokeapi.co).'
+  }
+};
+
+/* ---------- small helpers ---------- */
+const bi = (t, lang) => !t ? '' : (lang === 'vi' && t.vi && t.vi !== t.en ? `${t.vi} (${t.en})` : (t.en || t.vi || ''));
+const one = (t, lang) => !t ? '' : (lang === 'vi' ? (t.vi || t.en) : (t.en || t.vi)) || '';
+const tc = (type) => TYPE_COLORS[type] || '#9aa0b4';
+const spriteUrl = (dex) => dex ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${dex}.png` : null;
+const METHOD_STYLE = {
+  level:{ bg:'#163a24', fg:'#7ff0a3', bd:'#2f7a4b' }, tm:{ bg:'#14284a', fg:'#8db8ff', bd:'#2c5aa8' },
+  hm:{ bg:'#2c1a4a', fg:'#c6a6ff', bd:'#6a49b0' }, tutor:{ bg:'#3d2b0e', fg:'#ffcf7a', bd:'#9a6c1f' },
+  relearn:{ bg:'#3a1a24', fg:'#ff9fbd', bd:'#9a3a5a' }, egg:{ bg:'#2a2f1a', fg:'#e4f08a', bd:'#7a8a2f' }, other:{ bg:'#24262f', fg:'#c9ccd8', bd:'#4a4e5e' }
+};
+
+function TypeBadge({ type, lang, small }) {
+  return <span className="type-badge" style={{ background: tc(type), fontSize: small ? 9.5 : undefined, padding: small ? '2px 7px' : undefined }}>{one(TYPE_NAMES[type], lang) || type}</span>;
+}
+function Icon({ d, className = 'w-4 h-4' }) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true"><path d={d} /></svg>;
+}
+const IC = {
+  pin:'M12 21s-7-6.2-7-11a7 7 0 1 1 14 0c0 4.8-7 11-7 11zM12 12a2 2 0 1 0 0-4 2 2 0 0 0 0 4z',
+  spark:'M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8',
+  leaf:'M11 20A7 7 0 0 1 4 13c0-5 4-9 16-9 0 12-4 16-9 16zM4 20l7-7', bag:'M6 7h12l-1 13H7L6 7zM9 7a3 3 0 0 1 6 0',
+  sword:'M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2', shield:'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+  plus:'M12 5v14M5 12h14', down:'M12 5v14M5 12l7 7 7-7', up:'M12 19V5M5 12l7-7 7 7', x:'M18 6 6 18M6 6l12 12',
+  trophy:'M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3',
+  trash:'M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14', wand:'M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8 19 13M17.8 6.2 19 5M3 21l9-9M12.2 6.2 11 5',
+  refresh:'M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5', check:'M20 6 9 17l-5-5', alert:'M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z'
+};
+
+function Row({ icon, label, children }) {
+  return (
+    <div className="grid grid-cols-[18px_1fr] gap-2">
+      <span className="text-[var(--muted)] mt-[2px]"><Icon d={icon} /></span>
+      <div className="min-w-0"><dt className="text-[10.5px] uppercase tracking-[.14em] font-extrabold text-[var(--muted)]">{label}</dt><dd className="leading-snug">{children}</dd></div>
+    </div>
+  );
+}
+/* Placeholder card while Claude writes a build — shows the planned Pokémon */
+function SkeletonCard({ r, lang }) {
+  const primary = r.types?.[0] || 'normal';
+  return (
+    <article className="poke-card p-5 flex flex-col gap-4 min-w-0" style={{ '--tc': tc(primary) }} aria-busy="true">
+      <div className="flex items-start gap-3">
+        <div className="w-[76px] h-[76px] rounded-2xl border-2 grid place-items-center" style={{ borderColor: tc(primary) }}><span className="text-3xl font-black" style={{ color: tc(primary) }}>{r.name?.[0]}</span></div>
+        <div className="min-w-0 flex-1">
+          {r.dex ? <span className="dex-num text-[11px] text-[var(--muted)]">#{String(r.dex).padStart(3,'0')}</span> : null}
+          <h3 className="text-[22px] leading-tight font-black truncate">{r.name}</h3>
+          <div className="flex flex-wrap gap-1.5 mt-1.5">{(r.types||[]).map(ty => <TypeBadge key={ty} type={ty} lang={lang} />)}</div>
+        </div>
+      </div>
+      {[0,1,2,3].map(i => <div key={i} className="skeleton h-9" />)}
+      <div className="skeleton h-20" />
+    </article>
+  );
+}
+
+function BattleStrip({ battles, lang, t }) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+      {battles.map((b, i) => (
+        <div key={i} className="glass rounded-2xl p-3.5 border-2 flex gap-3 items-center min-w-0" style={{ borderColor: `${tc(b.type)}80` }}>
+          <div className="w-10 h-10 rounded-xl grid place-items-center font-black text-[#0b0b0f] shrink-0 border-2 border-black/40" style={{ background: tc(b.type), boxShadow:'2px 2px 0 rgba(0,0,0,.6)' }}>{i + 1}</div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap"><span className="font-extrabold">{b.leader}</span><TypeBadge type={b.type} lang={lang} small /></div>
+            <div className="text-[12px] text-[var(--muted)] truncate">{b.place}{b.place && b.ace ? ' · ' : ''}{b.ace}</div>
+            {b.counters?.length ? <div className="text-[12px] mt-0.5"><span className="text-[var(--muted)]">{t.counters}: </span><span className="font-semibold">{b.counters.join(', ')}</span></div> : null}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Coverage({ team, lang, t }) {
+  const counts = useMemo(() => { const c = {}; team.forEach(m => (m.types||[]).forEach(ty => c[ty] = (c[ty]||0) + 1)); return Object.entries(c).sort((a,b) => b[1]-a[1]); }, [team]);
+  const total = counts.reduce((s, [,n]) => s + n, 0) || 1;
+  if (!counts.length) return null;
+  return (
+    <div>
+      <div className="text-[11px] uppercase tracking-[.14em] font-extrabold text-[var(--muted)] mb-2">{t.coverage}</div>
+      <div className="flex h-3.5 rounded-full overflow-hidden border-2 border-white/80">{counts.map(([ty, n]) => <div key={ty} title={`${one(TYPE_NAMES[ty], lang)} ×${n}`} style={{ width: `${n/total*100}%`, background: tc(ty) }} />)}</div>
+      <div className="flex flex-wrap gap-1.5 mt-2">{counts.map(([ty, n]) => <span key={ty} className="chip bg-white/5 border border-white/10" style={{ color: tc(ty) }}>{one(TYPE_NAMES[ty], lang)} ×{n}</span>)}</div>
+    </div>
+  );
+}
+
+/* ---------- Add-game modal ---------- */
+function AddGameModal({ open, onClose, onSave, t }) {
+  const blank = { name:'', gen:'10', region:'', year: String(new Date().getFullYear()) };
+  const [f, setF] = useState(blank); const [err, setErr] = useState('');
+  useEffect(() => { if (open) { setErr(''); setF(blank); } }, [open]);
+  if (!open) return null;
+  const submit = (e) => {
+    e.preventDefault();
+    if (!f.name.trim()) return setErr(t.modal.reqName);
+    onSave({ id: 'custom-' + Date.now().toString(36), gen: Number(f.gen) || f.gen, region: f.region.trim() || '—', year: Number(f.year) || '', name: f.name.trim().replace(/^Pok[eé]mon\s+/i, ''), custom: true });
+  };
+  const field = 'w-full rounded-xl px-3 py-2.5 border-2 border-white/70 focus:outline-none focus:border-[var(--accent)]';
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center p-4 bg-black/70 backdrop-blur-sm fade-in" onClick={onClose}>
+      <form className="glass brutal rounded-2xl w-full max-w-lg p-5 max-h-[90vh] overflow-auto" onClick={e => e.stopPropagation()} onSubmit={submit}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-black">{t.modal.title}</h2>
+          <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10" aria-label={t.modal.cancel}><Icon d={IC.x} className="w-5 h-5" /></button>
+        </div>
+        <div className="grid gap-3">
+          <label className="grid gap-1 text-[13px] font-semibold">{t.modal.nameEn}
+            <input id="ng-name" className={field} placeholder="e.g. Winds / Waves" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} autoFocus />
+          </label>
+          <div className="grid grid-cols-3 gap-3">
+            <label className="grid gap-1 text-[13px] font-semibold">{t.modal.gen}<input id="ng-gen" className={field} value={f.gen} onChange={e => setF({ ...f, gen: e.target.value })} /></label>
+            <label className="grid gap-1 text-[13px] font-semibold">{t.modal.region}<input id="ng-region" className={field} placeholder="—" value={f.region} onChange={e => setF({ ...f, region: e.target.value })} /></label>
+            <label className="grid gap-1 text-[13px] font-semibold">{t.modal.year}<input id="ng-year" className={field} value={f.year} onChange={e => setF({ ...f, year: e.target.value })} /></label>
+          </div>
+          <p className="text-[12.5px] text-[var(--muted)]">{t.modal.hint}</p>
+          {err ? <div className="text-[13px] font-semibold text-red-300">{err}</div> : null}
+          <div className="flex gap-3 justify-end mt-1">
+            <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-xl border-2 border-white/40 font-bold hover:bg-white/5">{t.modal.cancel}</button>
+            <button type="submit" className="brutal-sm brutal-btn px-4 py-2.5 rounded-xl font-black bg-[var(--accent)] text-[#0b0b0f]">{t.modal.save}</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+/* ---------- verification marks ---------- */
+function VMark({ state, t }) {
+  if (state === 'ok') return <span title={t.vOk} aria-label={t.vOk} className="chip" style={{ background:'#163a24', color:'#7ff0a3', padding:'1px 5px' }}>✓</span>;
+  if (state === 'bad') return <span title={t.vBad} aria-label={t.vBad} className="chip" style={{ background:'#3d1717', color:'#ff9a9a', padding:'1px 5px' }}>✗</span>;
+  return null;
+}
+
+/* ---------- Pokémon card (with PokéAPI verification) ---------- */
+function PokemonCard({ mon, lang, t }) {
+  const primary = mon.types?.[0] || 'normal';
+  const [imgOk, setImgOk] = useState(true);
+  const nat = mon.nature; const v = mon.verify;
+  const none = <span className="text-[var(--muted)] italic">{t.noMech}</span>;
+  const okMoves = v?.moves ? v.moves.filter(x => x === 'ok').length : 0;
+  return (
+    <article className="poke-card p-5 overflow-hidden flex flex-col gap-4 min-w-0" style={{ '--tc': tc(primary) }}>
+      <div className="orb" />
+      <div className="flex items-start gap-3 relative">
+        <div className="shrink-0 w-[76px] h-[76px] rounded-2xl grid place-items-center border-2" style={{ borderColor: tc(primary), background: `radial-gradient(circle at 50% 60%, ${tc(primary)}40, transparent 70%)` }}>
+          {imgOk && spriteUrl(mon.dex)
+            ? <img src={spriteUrl(mon.dex)} alt={mon.name} loading="lazy" onError={() => setImgOk(false)} className="w-[70px] h-[70px] object-contain" />
+            : <span className="text-3xl font-black" style={{ color: tc(primary) }}>{mon.name?.[0]}</span>}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            {mon.dex ? <span className="dex-num text-[11px] text-[var(--muted)]">#{String(mon.dex).padStart(3,'0')}</span> : null}
+            {mon.lv ? <span className="chip bg-white/10 text-white/80">{mon.lv}</span> : null}
+            {v?.status === 'ok' ? <span className="chip" title={t.vOk} style={{ background: okMoves === (mon.moves||[]).length ? '#163a24' : '#3d2b0e', color: okMoves === (mon.moves||[]).length ? '#7ff0a3' : '#ffcf7a' }}>{t.verified} {okMoves}/{(mon.moves||[]).length}</span>
+              : v?.status === 'novg' ? <span className="chip bg-white/5 text-[var(--muted)]" title={t.vNoVG}>{t.vNoVG}</span>
+              : v?.status === 'unknown' ? <span className="chip" style={{ background:'#3d2b0e', color:'#ffcf7a' }}>{t.vUnknown}</span> : null}
+          </div>
+          <h3 className="text-[22px] leading-tight font-black tracking-tight truncate">{mon.name}</h3>
+          <div className="flex flex-wrap gap-1.5 mt-1.5">{(mon.types||[]).map(ty => <TypeBadge key={ty} type={ty} lang={lang} />)}</div>
+        </div>
+      </div>
+      {mon.evo ? <p className="text-[12px] text-[var(--muted)] -mt-1 relative">{one(mon.evo, lang)}</p> : null}
+      <dl className="grid gap-2.5 text-[13.5px] relative">
+        <Row icon={IC.pin} label={t.location}>
+          <span className="font-bold">{mon.loc?.place}</span>
+          {mon.loc?.note ? <span className="text-[var(--muted)]"> — {one(mon.loc.note, lang)}</span> : null}
+          {v?.status === 'ok' && Array.isArray(v.loc) ? (
+            v.loc.length ? <div className="mt-1 text-[12px] rounded-lg px-2 py-1.5 bg-[#163a24]/60 border border-[#2f7a4b]/60 text-[#bff5cf]">
+              <span className="font-bold">✓ {t.encFound}:</span> {v.loc.map(e => `${e.area} (${e.who}, ${e.lv}, ${one(e.method, lang)})`).join(' · ')}
+            </div> : <div className="mt-1 text-[12px] text-[#ffcf7a]">? {t.encNone}</div>
+          ) : v?.status === 'ok' && v.loc === null ? <div className="mt-1 text-[12px] text-[var(--muted)]">{t.paOffline}</div> : null}
+        </Row>
+        <Row icon={IC.spark} label={t.ability}>
+          {mon.ability ? <><span className="font-bold">{bi(mon.ability.name, lang)}</span>{' '}
+            {v?.ability ? <VMark state={v.ability.ok ? 'ok' : 'bad'} t={t} /> : null}
+            {mon.ability.desc ? <div className="text-[12px] text-[var(--muted)]">{one(mon.ability.desc, lang)}</div> : null}
+            {v?.ability && !v.ability.ok ? <div className="text-[12px] text-[#ff9a9a]">{t.abilityBad} {v.ability.valid.join(', ')}</div> : null}</> : none}
+        </Row>
+        <Row icon={IC.leaf} label={t.nature}>
+          {nat ? <><span className="font-bold">{bi(nat.name, lang)}</span>
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {nat.up ? <span className="chip" style={{ background:'#163a24', color:'#7ff0a3' }}>▲ {bi(STATS[nat.up], lang)}</span> : null}
+              {nat.down ? <span className="chip" style={{ background:'#3d1717', color:'#ff9a9a' }}>▼ {bi(STATS[nat.down], lang)}</span> : null}
+            </div></> : none}
+        </Row>
+        <Row icon={IC.bag} label={t.item}>
+          {mon.item ? <><span className="font-bold">{bi(mon.item.name, lang)}</span>
+            {mon.item.note && one(mon.item.note, lang) ? <div className="text-[12px] text-[var(--muted)]">{one(mon.item.note, lang)}</div> : null}</> : none}
+        </Row>
+      </dl>
+      <div className="relative">
+        <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[.14em] font-extrabold text-[var(--muted)] mb-2"><Icon d={IC.sword} className="w-3.5 h-3.5" />{t.moves}</div>
+        <ul className="grid gap-1.5">
+          {(mon.moves||[]).map((mv, i) => {
+            const k = mv.method?.k || 'other'; const ms = METHOD_STYLE[k] || METHOD_STYLE.other;
+            const label = (k === 'tm' || k === 'hm') ? (mv.method.v || t.method[k]) : `${t.method[k] || ''}${mv.method?.v && !['tutor','egg'].includes(k) ? ' · ' + mv.method.v.replace(/^Lv\.?\s*/i,'') : ''}`;
+            const vs = v?.moves?.[i];
+            return (
+              <li key={i} className="flex items-center gap-2 rounded-xl px-2.5 py-2 bg-black/30 border min-w-0" style={{ borderLeft: `4px solid ${tc(mv.type)}`, borderColor: vs === 'bad' ? '#9a3a3a' : 'rgba(255,255,255,.1)' }}>
+                <span className={`flex-1 min-w-0 text-[13px] font-semibold leading-snug ${vs === 'bad' ? 'line-through decoration-[#ff9a9a]/70' : ''}`}>{bi(mv.name, lang)}</span>
+                <TypeBadge type={mv.type} lang={lang} small />
+                <span className="chip border" style={{ background: ms.bg, color: ms.fg, borderColor: ms.bd }}>{label}</span>
+                <VMark state={vs} t={t} />
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+      <div className="relative mt-auto rounded-xl p-3 border-2 border-dashed" style={{ borderColor: `${tc(primary)}90`, background: `${tc(primary)}12` }}>
+        <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[.14em] font-extrabold" style={{ color: tc(primary) }}><Icon d={IC.shield} className="w-3.5 h-3.5" />{t.role}</div>
+        <div className="font-extrabold mt-1">{bi(mon.role?.label, lang)}</div>
+        {mon.role?.desc ? <p className="text-[12.5px] text-white/75 mt-1 leading-relaxed">{one(mon.role.desc, lang)}</p> : null}
+      </div>
+    </article>
+  );
+}
+
+/* ---------- Generation progress panel ---------- */
+function GenPanel({ gen, t, onStop, onRetry }) {
+  const steps = [['research', t.gen_research], ['plan', t.gen_plan], ['early', `${t.gen_phase} · ${t.phases.early}`], ['mid', `${t.gen_phase} · ${t.phases.mid}`], ['end', `${t.gen_phase} · ${t.phases.end}`]];
+  const running = Object.values(gen.steps).some(s => s === 'run' || s === 'verify');
+  const failed = Object.values(gen.steps).some(s => s === 'err');
+  const map = { wait:[t.gen_wait,'#24262f','#c9ccd8'], run:[t.gen_run,'#3d2b0e','#ffcf7a'], verify:[t.gen_verify,'#14284a','#8db8ff'], done:[t.gen_done,'#163a24','#7ff0a3'], err:[t.gen_err,'#3d1717','#ff9a9a'], skip:[t.gen_skip,'#24262f','#7d8194'] };
+  return (
+    <section className="mt-6 glass brutal rounded-2xl p-4 sm:p-5 fade-in" aria-live="polite">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          {running ? <span className="w-5 h-5 rounded-full border-[3px] border-[var(--accent)] border-t-transparent spin" /> : failed ? <span className="text-red-300"><Icon d={IC.alert} className="w-5 h-5" /></span> : <span className="text-green-300"><Icon d={IC.check} className="w-5 h-5" /></span>}
+          <h2 className="font-black text-lg">{t.gen_title}</h2>
+          {gen.provider ? <span className="chip bg-white/10">{gen.provider}</span> : null}
+        </div>
+        <div className="flex gap-2">
+          {running ? <button onClick={onStop} className="rounded-xl px-3.5 py-2 font-bold border-2 border-white/40 hover:bg-white/5">{t.stop}</button> : null}
+          {!running && failed ? <button onClick={onRetry} className="brutal-sm brutal-btn rounded-xl px-3.5 py-2 font-black bg-[var(--accent)] text-[#0b0b0f] flex items-center gap-1.5"><Icon d={IC.refresh} />{t.retry}</button> : null}
+        </div>
+      </div>
+      <ol className="mt-4 grid gap-2 sm:grid-cols-2">
+        {steps.map(([k, label]) => { const [l, bg, fg] = map[gen.steps[k]] || map.wait; return (
+          <li key={k} className="flex items-center gap-3 rounded-xl px-3 py-2.5 bg-black/30 border border-white/10 min-w-0">
+            <span className="flex-1 min-w-0 text-[13.5px] font-semibold truncate">{label}</span>
+            {gen.info?.[k] ? <span className="dex-num text-[11px] text-[var(--muted)] tabular-nums">{gen.info[k]}</span> : null}
+            <span className="chip" style={{ background: bg, color: fg }}>{l}</span>
+          </li>); })}
+      </ol>
+      {running && gen.attempt ? <p className="mt-3 text-[12.5px] text-[#ffcf7a] dex-num break-words">→ {gen.attempt}</p> : null}
+      {gen.error ? <p className="mt-3 text-[13.5px] font-semibold text-red-300 break-words">{gen.error}</p> : <p className="mt-3 text-[12.5px] text-[var(--muted)]">{t.gen_note}</p>}
+    </section>
+  );
+}
+
+/* ---------- AI settings modal ---------- */
+function SettingsModal({ open, onClose, cfg, onSave, t, claudeAvailable }) {
+  const [f, setF] = useState(cfg); const [models, setModels] = useState([]); const [msg, setMsg] = useState('');
+  useEffect(() => { if (open) { setF(cfg); setMsg(''); } }, [open]);
+  if (!open) return null;
+  const c = t.cfg;
+  const field = 'w-full rounded-xl px-3 py-2.5 border-2 border-white/70 focus:outline-none focus:border-[var(--accent)] font-mono text-[13px]';
+  const loadModels = async () => {
+    setMsg('…');
+    try {
+      const list = await listGeminiModels(f.geminiKey); setModels(list);
+      const flash = list.filter(m => /flash/.test(m) && !/exp/.test(m));
+      /* stable before preview; Flash before Flash-Lite within the same version; newest first */
+      const ver = (m) => parseFloat((m.match(/gemini-(\d+(?:\.\d+)?)/) || [])[1] || 0);
+      flash.sort((a, b) => (/preview/.test(a) - /preview/.test(b)) || (ver(b) - ver(a)) || (/lite/.test(a) - /lite/.test(b)));
+      if (flash.length) setF(x => ({ ...x, geminiModels: flash.slice(0, 6).join(', ') }));
+      setMsg(`${list.length} ${c.models}: ${list.join(', ')}`);
+    } catch (e) { setMsg(e.message); }
+  };
+  const Toggle = ({ k, label, note }) => (
+    <label className="flex gap-3 items-start cursor-pointer">
+      <input id={'cfg-' + k} type="checkbox" checked={!!f[k]} onChange={e => setF({ ...f, [k]: e.target.checked })} className="mt-1 w-4 h-4 accent-[#ffcb05]" />
+      <span className="text-[13px]"><span className="font-semibold">{label}</span><br /><span className="text-[var(--muted)] text-[12px]">{note}</span></span>
+    </label>
+  );
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center p-4 bg-black/70 backdrop-blur-sm fade-in" onClick={onClose}>
+      <form className="glass brutal rounded-2xl w-full max-w-xl p-5 max-h-[92vh] overflow-auto" onClick={e => e.stopPropagation()} onSubmit={e => { e.preventDefault(); onSave(f); }}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-black">{c.title}</h2>
+          <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10" aria-label={c.cancel}><Icon d={IC.x} className="w-5 h-5" /></button>
+        </div>
+        <div className="grid gap-4">
+          <fieldset className="grid gap-2">
+            <legend className="text-[11px] uppercase tracking-[.14em] font-extrabold text-[var(--muted)] mb-1">{c.provider}</legend>
+            {[['gemini', c.gemini], ['groq', c.groq], ...(claudeAvailable ? [['claude', c.claude]] : [])].map(([k, l]) => (
+              <label key={k} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 border-2 cursor-pointer ${f.provider === k ? 'border-[var(--accent)] bg-[#ffcb05]/10' : 'border-white/20'}`}>
+                <input type="radio" name="provider" checked={f.provider === k} onChange={() => setF({ ...f, provider: k })} className="accent-[#ffcb05]" /><span className="font-bold">{l}</span>
+              </label>
+            ))}
+          </fieldset>
+          {f.provider === 'gemini' ? (
+            <div className="grid gap-3 rounded-xl p-3 border border-white/15">
+              <label className="grid gap-1 text-[13px] font-semibold">{c.key} · <a className="text-[#8db8ff] underline" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">{c.getKey} ↗</a>
+                <input id="cfg-gkey" type="password" autoComplete="off" className={field} value={f.geminiKey} onChange={e => setF({ ...f, geminiKey: e.target.value.trim() })} placeholder="AIza…" /></label>
+              <label className="grid gap-1 text-[13px] font-semibold">{c.models_order}
+                <div className="flex gap-2 items-start">
+                  <textarea id="cfg-gmodels" rows={2} className={field} value={f.geminiModels} onChange={e => setF({ ...f, geminiModels: e.target.value })} />
+                  <button type="button" onClick={loadModels} disabled={!f.geminiKey} className="shrink-0 rounded-xl px-3 py-2 border-2 border-white/40 font-bold text-[12px] disabled:opacity-40">{c.loadModels}</button>
+                </div>
+                <span className="text-[12px] font-normal text-[var(--muted)]">{c.models_hint}</span>
+                {msg ? <span className="text-[12px] font-normal text-[var(--muted)] break-words">{msg}</span> : null}
+              </label>
+              <Toggle k="geminiSearch" label={c.search} note={c.geminiSearchNote} />
+            </div>
+          ) : f.provider === 'groq' ? (
+            <div className="grid gap-3 rounded-xl p-3 border border-white/15">
+              <label className="grid gap-1 text-[13px] font-semibold">{c.key} · <a className="text-[#8db8ff] underline" href="https://console.groq.com/keys" target="_blank" rel="noopener">{c.getKey} ↗</a>
+                <input id="cfg-qkey" type="password" autoComplete="off" className={field} value={f.groqKey} onChange={e => setF({ ...f, groqKey: e.target.value.trim() })} placeholder="gsk_…" /></label>
+              <label className="grid gap-1 text-[13px] font-semibold">{c.models_order}<input id="cfg-qmodels" className={field} value={f.groqModels} onChange={e => setF({ ...f, groqModels: e.target.value })} /></label>
+              <Toggle k="groqSearch" label={c.search} note={c.groqSearchNote} />
+            </div>
+          ) : null}
+          {f.provider !== 'claude' ? (
+            <div className="grid gap-3 rounded-xl p-3 border border-dashed border-white/25">
+              <Toggle k="backup" label={c.backup} note={c.backupNote} />
+              {f.backup ? (f.provider === 'gemini'
+                ? <label className="grid gap-1 text-[13px] font-semibold">Groq {c.key} · <a className="text-[#8db8ff] underline" href="https://console.groq.com/keys" target="_blank" rel="noopener">{c.getKey} ↗</a>
+                    <input id="cfg-qkey2" type="password" autoComplete="off" className={field} value={f.groqKey} onChange={e => setF({ ...f, groqKey: e.target.value.trim() })} placeholder="gsk_…" /></label>
+                : <label className="grid gap-1 text-[13px] font-semibold">Gemini {c.key} · <a className="text-[#8db8ff] underline" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">{c.getKey} ↗</a>
+                    <input id="cfg-gkey2" type="password" autoComplete="off" className={field} value={f.geminiKey} onChange={e => setF({ ...f, geminiKey: e.target.value.trim() })} placeholder="AIza…" /></label>) : null}
+            </div>
+          ) : null}
+          <label className="grid gap-1 text-[13px] font-semibold">{c.tavily} · <a className="text-[#8db8ff] underline" href="https://app.tavily.com" target="_blank" rel="noopener">{c.getKey} ↗</a>
+            <input id="cfg-tkey" type="password" autoComplete="off" className={field} value={f.tavilyKey} onChange={e => setF({ ...f, tavilyKey: e.target.value.trim() })} placeholder="tvly-…" />
+            <span className="text-[12px] font-normal text-[var(--muted)]">{c.tavilyNote}</span></label>
+          <p className="text-[12px] text-[var(--muted)] border-l-4 border-white/20 pl-3">{c.privacy}</p>
+          <div className="flex gap-3 justify-end">
+            <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-xl border-2 border-white/40 font-bold hover:bg-white/5">{c.cancel}</button>
+            <button type="submit" className="brutal-sm brutal-btn px-4 py-2.5 rounded-xl font-black bg-[var(--accent)] text-[#0b0b0f]">{c.save}</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+/* =====================================================================
+   APP
+   ===================================================================== */
+const PHASES = ['early', 'mid', 'end'];
+const cfgReady = (c) => c.provider === 'gemini' ? !!c.geminiKey : c.provider === 'groq' ? !!c.groqKey : c.provider === 'claude';
+const providerLabel = (c) => c.provider === 'gemini' ? `Gemini · ${modelList(c.geminiModels)[0] || ''}` : c.provider === 'groq' ? `Groq · ${modelList(c.groqModels)[0] || ''}` : 'Claude';
+const clone = (o) => JSON.parse(JSON.stringify(o));
+
+function App() {
+  const prefs = lsGet(LS_PREFS, {});
+  const [lang, setLang] = useState(prefs.lang || 'vi');
+  const [gameId, setGameId] = useState(prefs.gameId || 'platinum');
+  const [phase, setPhase] = useState(prefs.phase || 'early');
+  const [cfg, setCfg] = useState(loadCfg);
+  const [customGames, setCustomGames] = useState(() => lsGet(LS_GAMES, []));
+  const [dataMap, setDataMap] = useState(() => lsGet(LS_DATA, {}));
+  const [gens, setGens] = useState({});
+  const [modal, setModal] = useState(false);
+  const [cfgOpen, setCfgOpen] = useState(false);
+  const [toast, setToast] = useState('');
+  const [armRemove, setArmRemove] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [claudeSample, setClaudeSample] = useState(null);
+  const fileRef = useRef(null);
+  const ctlRef = useRef({});
+  const dataRef = useRef(dataMap); dataRef.current = dataMap;
+  const autoStarted = useRef({});
+  const t = UI[lang];
+
+  useEffect(() => { const c = window.claude; if (c && typeof c.use === 'function') c.use('sample').then(s => s && setClaudeSample(() => s)).catch(() => {}); }, []);
+  useEffect(() => { lsSet(LS_PREFS, { lang, gameId, phase }); document.documentElement.lang = lang; }, [lang, gameId, phase]);
+  useEffect(() => { lsSet(LS_GAMES, customGames); }, [customGames]);
+  useEffect(() => { if (!toast) return; const id = setTimeout(() => setToast(''), 3000); return () => clearTimeout(id); }, [toast]);
+  useEffect(() => { setArmRemove(false); }, [gameId]);
+
+  const allGames = useMemo(() => [...BASE_GAMES, ...customGames.filter(g => !BASE_GAMES.some(b => b.id === g.id))], [customGames]);
+  const game = allGames.find(g => g.id === gameId) || BASE_GAMES.find(g => g.id === 'platinum');
+  const builtin = BUILTIN_DATA[game.id];
+  const data = dataMap[game.id] || builtin || null;
+  const gen = gens[game.id];
+
+  const putData = (id, d) => { dataRef.current = { ...dataRef.current, [id]: d }; setDataMap(m => ({ ...m, [id]: d })); const all = lsGet(LS_DATA, {}); all[id] = d; lsSet(LS_DATA, all); };
+  const dropData = (id) => { const n = { ...dataRef.current }; delete n[id]; dataRef.current = n; setDataMap(n); const all = lsGet(LS_DATA, {}); delete all[id]; lsSet(LS_DATA, all); };
+  const setGen = (id, fn) => setGens(g => ({ ...g, [id]: fn(g[id] || { steps:{ research:'wait', plan:'wait', early:'wait', mid:'wait', end:'wait' }, info:{}, error:'' }) }));
+  const step = (id, k, s, info) => setGen(id, g => ({ ...g, steps: { ...g.steps, [k]: s }, info: info !== undefined ? { ...g.info, [k]: info } : g.info }));
+  const errCopy = (e) => { const m = t.err[e?.code]; if (e?.code === 'http') return m + (e.message || ''); return m || (t.err.http + (e?.message || '')); };
+
+  /* verify + repair one phase's team in place */
+  const verifyTeam = async (g, team, key, signal, allowRepair) => {
+    const bads = [];
+    for (const mon of team) {
+      try { const r = await verifyMon(mon, g, signal); if (r.bad.length && r.p) bads.push({ mon, idx: r.bad, p: r.p }); }
+      catch (e) { if (e.code === 'cancelled') throw e; mon.verify = { status: 'offline' }; }
+    }
+    if (allowRepair && bads.length && cfgReady(cfg)) {
+      const items = bads.map(b => ({ name: b.mon.name, role: one(b.mon.role?.label, 'en'), keep: b.mon.moves.filter((_, i) => !b.idx.includes(i)).map(m => m.name.en), badMoves: b.idx.map(i => b.mon.moves[i].name.en), digest: learnsetDigest(b.p) }));
+      try {
+        const { json } = await askJSON(cfg, repairPrompt(g, key, items), { signal, useSearch: false, sampleFn: claudeSample, onAttempt: (l) => setGen(g.id, s => ({ ...s, attempt: l })) });
+        for (const fx of json?.fixes || []) {
+          const b = bads.find(x => normKey(x.mon.name) === normKey(fx.name)); if (!b) continue;
+          const i = b.mon.moves.findIndex(m => normKey(m.name.en) === normKey(fx.replace)); if (i < 0 || !fx.with) continue;
+          b.mon.moves[i] = { name: asT(fx.with) || { vi: fx.with.en, en: fx.with.en }, type: asType(fx.type), method: { k: 'other', v: '' } };
+        }
+        for (const b of bads) { try { await verifyMon(b.mon, g, signal); } catch (e) { if (e.code === 'cancelled') throw e; } }
+      } catch (e) { if (e.code === 'cancelled') throw e; }
+    }
+    return team;
+  };
+
+  const runPhase = async (g, key, signal, research) => {
+    const cur = dataRef.current[g.id]; const ph = cur?.phases?.[key]; if (!ph) return;
+    step(g.id, key, 'run');
+    try {
+      const ctx = research?.length ? `\n\nWEB RESEARCH (snippets from Bulbapedia/Serebii/PokémonDB — prefer these over memory when they disagree):\n${research.map(r => `- ${r.title}: ${r.content}`).join('\n').slice(0, 6000)}` : '';
+      const { json, sources, used } = await askJSON(cfg, phasePrompt(g, key, ph) + ctx, { signal, sampleFn: claudeSample, onAttempt: (l) => setGen(g.id, s => ({ ...s, attempt: l })) });
+      const arr = Array.isArray(json) ? json : Array.isArray(json?.team) ? json.team : null;
+      if (!arr?.length) throw new LLMError('bad_shape', 'no team');
+      let team = arr.slice(0, 6).map(normMon);
+      step(g.id, key, 'verify');
+      team = await verifyTeam(g, team, key, signal, true);
+      const d = dataRef.current[g.id];
+      putData(g.id, { ...d, sources: mergeSources(d.sources, sources), phases: { ...d.phases, [key]: { ...d.phases[key], team } } });
+      const ok = team.reduce((s, m) => s + (m.verify?.moves || []).filter(x => x === 'ok').length, 0), all = team.reduce((s, m) => s + (m.moves || []).length, 0);
+      step(g.id, key, 'done', `✓ ${ok}/${all} · ${String(used || '').replace(/^\w+ · /, '')}`);
+    } catch (e) {
+      step(g.id, key, 'err'); if (e.code !== 'cancelled') setGen(g.id, s => ({ ...s, error: errCopy(e) }));
+    }
+  };
+
+  const generate = async (g, { onlyMissing = false } = {}) => {
+    if (!cfgReady(cfg)) { setCfgOpen(true); return; }
+    (ctlRef.current[g.id] || []).forEach(c => c.abort());
+    const ctl = new AbortController(); ctlRef.current[g.id] = [ctl]; const signal = ctl.signal;
+    setGens(s => ({ ...s, [g.id]: { provider: providerLabel(cfg), steps:{ research:'wait', plan:'wait', early:'wait', mid:'wait', end:'wait' }, info:{}, error:'' } }));
+    /* 1. research */
+    let research = [];
+    if (cfg.tavilyKey) {
+      step(g.id, 'research', 'run');
+      try {
+        const qs = [`Pokémon ${g.name} gym leaders teams levels walkthrough`, `Pokémon ${g.name} best in-game team catchable early`];
+        const res = await Promise.all(qs.map(q => tavilySearch(cfg.tavilyKey, q, signal).catch(e => { if (e.code === 'cancelled') throw e; return []; })));
+        research = res.flat(); step(g.id, 'research', research.length ? 'done' : 'err', research.length ? `${research.length}` : '');
+        if (!research.length) setGen(g.id, s => ({ ...s, error: '' }));
+      } catch (e) { if (e.code === 'cancelled') { step(g.id, 'research', 'err'); return; } step(g.id, 'research', 'err'); }
+    } else step(g.id, 'research', 'skip');
+    /* 2. plan */
+    let d = onlyMissing ? dataRef.current[g.id] : null;
+    if (!d?.phases?.early?.roster?.length) {
+      step(g.id, 'plan', 'run');
+      try {
+        const ctx = research.length ? `\n\nWEB RESEARCH (snippets — prefer these over memory when they disagree):\n${research.map(r => `- ${r.title} (${r.url}): ${r.content}`).join('\n').slice(0, 9000)}` : '';
+        const { json: plan, sources, note, used } = await askJSON(cfg, planPrompt(g) + ctx, { signal, sampleFn: claudeSample, onAttempt: (l) => setGen(g.id, s => ({ ...s, attempt: l })) });
+        if (!plan?.phases || !PHASES.every(k => plan.phases[k]?.roster?.length)) throw new LLMError('bad_shape', 'plan');
+        d = { ai: true, provider: used || providerLabel(cfg), generatedAt: new Date().toISOString(), notes: asT(plan.notes), searchNote: note,
+          sources: mergeSources(research.map(r => ({ title: r.title, url: r.url })), sources), phases: {} };
+        PHASES.forEach(k => d.phases[k] = normPlanPhase(plan.phases[k]));
+        putData(g.id, d); step(g.id, 'plan', 'done', String(used || '').replace(/^\w+ · /, ''));
+      } catch (e) { step(g.id, 'plan', 'err'); if (e.code !== 'cancelled') setGen(g.id, s => ({ ...s, error: errCopy(e) })); return; }
+    } else step(g.id, 'plan', 'done');
+    /* 3. phases — sequential to respect free-tier rate limits, current tab first */
+    const todo = PHASES.filter(k => !(onlyMissing && d.phases[k]?.team?.length));
+    PHASES.filter(k => !todo.includes(k)).forEach(k => step(g.id, k, 'done'));
+    for (const k of [phase, ...todo.filter(x => x !== phase)].filter(x => todo.includes(x))) {
+      if (signal.aborted) break;
+      await runPhase(g, k, signal, research);
+    }
+  };
+
+  /* re-verify current data (works for built-in Platinum and imports too) */
+  const verifyAll = async () => {
+    const base = data; if (!base) return;
+    setVerifying(true);
+    const ctl = new AbortController(); ctlRef.current[game.id] = [ctl];
+    try {
+      const d = clone(base);
+      for (const k of PHASES) if (d.phases[k]?.team?.length) d.phases[k].team = await verifyTeam(game, d.phases[k].team, k, ctl.signal, !!d.ai);
+      putData(game.id, d);
+    } catch (e) { if (e.code !== 'cancelled') setToast(t.paOffline); }
+    setVerifying(false);
+  };
+
+  useEffect(() => {
+    if (builtin || !cfgReady(cfg)) return;
+    const d = dataRef.current[game.id];
+    const incomplete = d?.phases && PHASES.some(k => !d.phases[k]?.team?.length);
+    if ((!d || incomplete) && !gens[game.id] && !autoStarted.current[game.id]) { autoStarted.current[game.id] = true; generate(game, { onlyMissing: !!incomplete }); }
+  }, [game.id, cfg]);
+
+  const stop = () => (ctlRef.current[game.id] || []).forEach(c => c.abort());
+  const retry = () => generate(game, { onlyMissing: true });
+  const regenerate = () => { dropData(game.id); generate(game); };
+  const saveCfg = (c) => { delete SEARCH_REFUSED.gemini; delete SEARCH_REFUSED.groq; setCfg(c); lsSet(LS_CFG, c); setCfgOpen(false); autoStarted.current = {}; };
+  const saveGame = (g) => { setCustomGames(cg => [...cg, g]); setModal(false); setGameId(g.id); setPhase('early'); };
+  const removeGame = () => { if (!armRemove) { setArmRemove(true); return; } stop(); dropData(game.id); setCustomGames(cg => cg.filter(g => g.id !== game.id)); setGameId('platinum'); };
+  const exportJson = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify({ game, ...data }, null, 2)], { type: 'application/json' })); a.download = `${game.id}-walkthrough.json`; a.click(); };
+  const onImport = (e) => {
+    const file = e.target.files?.[0]; if (!file) return; const r = new FileReader();
+    r.onload = () => { try { const d = JSON.parse(r.result); if (!d.phases) throw 0;
+      const nd = { ai: !!d.ai, provider: d.provider, generatedAt: d.generatedAt || new Date().toISOString(), notes: asT(d.notes), sources: d.sources || [], phases: {} };
+      PHASES.forEach(k => { const p = normPlanPhase(d.phases[k]); p.team = (d.phases[k]?.team || []).map(m => ({ ...normMon(m), verify: m.verify })); if (!p.roster.length) p.roster = p.team.map(m => ({ name:m.name, dex:m.dex, types:m.types })); nd.phases[k] = p; });
+      putData(game.id, nd); setToast(t.imported); } catch { setToast(t.badJson); } };
+    r.readAsText(file); e.target.value = '';
+  };
+
+  const groups = useMemo(() => { const m = new Map(); allGames.forEach(g => { const k = g.custom ? 'custom' : g.gen; if (!m.has(k)) m.set(k, []); m.get(k).push(g); }); return [...m.entries()]; }, [allGames]);
+  const ph = data?.phases?.[phase];
+  const running = gen && Object.values(gen.steps).some(s => s === 'run' || s === 'verify');
+  const showPanel = gen && !builtin && (running || Object.values(gen.steps).some(s => s === 'err'));
+  const phaseLabel = (p) => (!builtin && data?.phases?.[p]?.label) ? one(data.phases[p].label, lang) : t.phaseSub[p];
+
+  return (
+    <div className="max-w-[1320px] mx-auto pb-16">
+      <header className="pt-6 sm:pt-10 pb-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-12 h-12 rounded-full brutal-sm relative overflow-hidden shrink-0" aria-hidden="true">
+              <div className="absolute inset-x-0 top-0 h-1/2 bg-[#ff3b3b]" /><div className="absolute inset-x-0 bottom-0 h-1/2 bg-white" />
+              <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[3px] bg-[#0b0b0f]" />
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white border-[3px] border-[#0b0b0f]" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[11px] font-extrabold tracking-[.22em] uppercase text-[var(--accent)]">Pokémon</div>
+              <h1 className="text-2xl sm:text-4xl font-black tracking-tight leading-none" style={{ textWrap: 'balance' }}>{t.title}</h1>
+            </div>
+          </div>
+          <div className="flex gap-2 items-center">
+            <button onClick={() => setCfgOpen(true)} className="brutal-sm brutal-btn rounded-xl px-3 py-2 font-bold text-sm bg-[#0e1018] flex items-center gap-2">
+              <span className={`w-2.5 h-2.5 rounded-full ${cfgReady(cfg) ? 'bg-[#7ff0a3]' : 'bg-[#ff9a9a]'}`} />{t.openCfg}
+            </button>
+            <div className="brutal-sm rounded-xl p-1 flex gap-1 bg-[#0e1018]" role="group" aria-label="Language">
+              {['en', 'vi'].map(l => <button key={l} onClick={() => setLang(l)} aria-pressed={lang === l} className={`px-3.5 py-1.5 rounded-lg font-black text-sm transition-colors ${lang === l ? 'tab-active' : 'text-white/70 hover:text-white'}`}>{l.toUpperCase()}</button>)}
+            </div>
+          </div>
+        </div>
+        <p className="text-[var(--muted)] mt-3 max-w-2xl text-[15px]">{t.subtitle}</p>
+      </header>
+
+      <section className="glass brutal rounded-2xl p-4 sm:p-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] items-end">
+        <label className="grid gap-1.5 min-w-0">
+          <span className="text-[11px] uppercase tracking-[.14em] font-extrabold text-[var(--muted)]">{t.game}</span>
+          <select id="game-select" value={game.id} onChange={e => setGameId(e.target.value)} className="w-full rounded-xl px-3.5 py-3 border-2 border-white/80 font-bold text-[15px] focus:outline-none focus:border-[var(--accent)]">
+            {groups.map(([g, list]) => (
+              <optgroup key={g} label={g === 'custom' ? `★ ${t.custom}` : `Generation ${g}`}>
+                {list.map(x => <option key={x.id} value={x.id}>{`Pokémon ${x.name} (${x.year || '?'})${BUILTIN_DATA[x.id] ? '  ✓' : dataMap[x.id] ? '  ✦' : ''}`}</option>)}
+              </optgroup>
+            ))}
+          </select>
+        </label>
+        <div className="flex flex-wrap gap-2.5">
+          <button onClick={() => setModal(true)} className="brutal-sm brutal-btn rounded-xl px-4 py-3 font-black bg-[var(--accent)] text-[#0b0b0f] flex items-center gap-2"><Icon d={IC.plus} />{t.addGame}</button>
+          {data ? <button onClick={exportJson} className="brutal-sm brutal-btn rounded-xl px-4 py-3 font-bold bg-[#0e1018] flex items-center gap-2"><Icon d={IC.down} />{t.exportJson}</button> : null}
+          <button onClick={() => fileRef.current?.click()} className="brutal-sm brutal-btn rounded-xl px-4 py-3 font-bold bg-[#0e1018] flex items-center gap-2"><Icon d={IC.up} />{t.importJson}</button>
+        </div>
+        <div className="lg:col-span-2 flex flex-wrap gap-2 items-center">
+          <span className="chip bg-white/10">{t.gen} {game.gen}</span><span className="chip bg-white/10">{game.region}</span><span className="chip bg-white/10">{game.year}</span>
+          {game.custom ? <span className="chip" style={{ background:'#3d2b0e', color:'#ffcf7a' }}>★ {t.custom}</span> : null}
+          {builtin && !dataMap[game.id] ? <span className="chip" style={{ background:'#163a24', color:'#7ff0a3' }}>✓ {t.builtIn}</span> : data?.ai ? <span className="chip" style={{ background:'#2c1a4a', color:'#c6a6ff' }}>✦ {t.aiBadge}{data.provider ? ` · ${data.provider}` : ''}</span> : null}
+          {data?.ai && data.generatedAt ? <span className="chip bg-white/5 text-[var(--muted)]">{t.generatedAt} {new Date(data.generatedAt).toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US')}</span> : null}
+          <span className="flex-1" />
+          {data && GAME_PA[game.id] && !running ? <button onClick={verifyAll} disabled={verifying} className="text-[13px] font-bold text-[#8db8ff] hover:text-white inline-flex items-center gap-1.5 disabled:opacity-60"><Icon d={IC.check} className="w-3.5 h-3.5" />{verifying ? t.verifying : t.verifyBtn}</button> : null}
+          {!builtin && data && cfgReady(cfg) && !running ? <button onClick={regenerate} className="text-[13px] font-bold text-[#c6a6ff] hover:text-white inline-flex items-center gap-1.5"><Icon d={IC.refresh} className="w-3.5 h-3.5" />{t.regenerate}</button> : null}
+          {game.custom ? <button onClick={removeGame} className="text-[13px] font-bold text-red-300 hover:text-red-200 inline-flex items-center gap-1.5"><Icon d={IC.trash} className="w-3.5 h-3.5" />{armRemove ? t.confirmRemove : t.remove}</button> : null}
+        </div>
+      </section>
+
+      <nav className="mt-6 grid grid-cols-3 gap-2 sm:gap-3" role="tablist">
+        {PHASES.map((p, i) => (
+          <button key={p} role="tab" aria-selected={phase === p} onClick={() => setPhase(p)} className={`brutal-sm brutal-btn rounded-2xl px-2 sm:px-4 py-3 text-left transition-colors min-w-0 ${phase === p ? 'tab-active' : 'bg-[#0e1018] text-white/85'}`}>
+            <div className="flex items-center gap-2"><span className={`dex-num text-[11px] font-bold ${phase === p ? 'text-black/60' : 'text-[var(--muted)]'}`}>0{i + 1}</span><span className="font-black text-[14px] sm:text-lg leading-tight">{t.phases[p]}</span></div>
+            <div className={`text-[11px] sm:text-[12.5px] mt-0.5 truncate ${phase === p ? 'text-black/70' : 'text-[var(--muted)]'}`}>{phaseLabel(p)}</div>
+          </button>
+        ))}
+      </nav>
+
+      {showPanel ? <GenPanel gen={gen} t={t} onStop={stop} onRetry={retry} /> : null}
+
+      {ph ? (
+        <div key={game.id + phase} className="fade-in">
+          {data.ai ? <p className="mt-6 text-[13px] text-[#c6a6ff] border-l-4 border-[#6a49b0] pl-3 leading-relaxed">{t.aiDisclaimer}{data.searchNote === 'search_off' ? ' ' + t.searchOff : ''}{data.notes && one(data.notes, lang) ? ' ' + one(data.notes, lang) : ''}</p> : null}
+          <section className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
+            <div className="glass rounded-2xl p-5 border-2 border-white/15 flex flex-col gap-4 min-w-0">
+              <div><div className="text-[11px] uppercase tracking-[.14em] font-extrabold text-[var(--accent)]">{t.strategy}</div><p className="mt-2 text-[14.5px] leading-relaxed text-white/90">{one(ph.tip, lang)}</p></div>
+              <div className="flex flex-wrap gap-2">
+                {ph.levelRange ? <div className="chip bg-white/10 text-[12px]">{t.levels}: {ph.levelRange}</div> : null}
+                <div className="chip bg-white/10 text-[12px]">{t.team}: {(ph.team?.length || ph.roster?.length || 0)} {t.mons}</div>
+              </div>
+              <Coverage team={ph.team?.length ? ph.team : (ph.roster || [])} lang={lang} t={t} />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-[11px] uppercase tracking-[.14em] font-extrabold text-[var(--muted)] mb-2.5"><Icon d={IC.trophy} className="w-3.5 h-3.5" />{t.keyBattles}</div>
+              <BattleStrip battles={ph.battles || []} lang={lang} t={t} />
+            </div>
+          </section>
+          <section className="mt-8 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 stagger">
+            {ph.team?.length ? ph.team.map((m, i) => <PokemonCard key={m.name + i} mon={m} lang={lang} t={t} />) : (ph.roster || []).map((r, i) => <SkeletonCard key={r.name + i} r={r} lang={lang} />)}
+          </section>
+          {ph.mascot ? (
+            <section className="mt-8 rounded-2xl p-4 sm:p-5 border-2 border-dashed flex gap-4 items-center glass" style={{ borderColor: `${tc(ph.mascot.types?.[0])}aa` }}>
+              <img src={spriteUrl(ph.mascot.dex)} alt="" className="w-20 h-20 object-contain shrink-0" onError={e => e.currentTarget.style.display='none'} />
+              <div className="min-w-0">
+                <div className="text-[11px] uppercase tracking-[.14em] font-extrabold text-[var(--muted)]">{t.mascot}</div>
+                <div className="flex items-center gap-2 flex-wrap mt-0.5"><span className="font-black text-lg">{ph.mascot.name}</span>{(ph.mascot.types||[]).map(ty => <TypeBadge key={ty} type={ty} lang={lang} small />)}</div>
+                <p className="text-[13px] text-white/75 mt-1 leading-relaxed">{one(ph.mascot.note, lang)}</p>
+              </div>
+            </section>
+          ) : null}
+          {data.sources?.length ? (
+            <section className="mt-8">
+              <div className="text-[11px] uppercase tracking-[.14em] font-extrabold text-[var(--muted)] mb-2">{t.sources}</div>
+              <ul className="grid gap-1 text-[13px] sm:grid-cols-2">{data.sources.slice(0, 12).map((s, i) => <li key={i} className="min-w-0 truncate"><a className="text-[#8db8ff] hover:underline" href={s.url} target="_blank" rel="noopener">{s.title || s.url}</a></li>)}</ul>
+            </section>
+          ) : null}
+        </div>
+      ) : !showPanel ? (
+        <section className="mt-6 glass rounded-2xl border-2 border-dashed border-white/40 p-8 sm:p-12 text-center fade-in">
+          {!cfgReady(cfg) ? (<>
+            <h2 className="text-xl sm:text-2xl font-black">{t.needCfg}</h2>
+            <p className="text-[var(--muted)] mt-2 max-w-xl mx-auto">{t.needCfgSub}</p>
+            <div className="flex flex-wrap gap-3 justify-center mt-6">
+              <button onClick={() => setCfgOpen(true)} className="brutal-sm brutal-btn rounded-xl px-5 py-3 font-black bg-[var(--accent)] text-[#0b0b0f]">{t.openCfg}</button>
+              <button onClick={() => setGameId('platinum')} className="rounded-xl px-4 py-3 font-bold border-2 border-white/30 hover:bg-white/5">Pokémon Platinum</button>
+            </div>
+          </>) : (<>
+            <h2 className="text-xl sm:text-2xl font-black">{t.idleTitle}</h2>
+            <p className="text-[var(--muted)] mt-2 max-w-xl mx-auto">{t.idleSub}</p>
+            {gen?.error ? <p className="mt-3 text-[13.5px] font-semibold text-red-300">{gen.error}</p> : null}
+            <button onClick={() => generate(game)} className="mt-6 brutal-sm brutal-btn rounded-xl px-5 py-3 font-black bg-[var(--accent)] text-[#0b0b0f] inline-flex items-center gap-2"><Icon d={IC.wand} />{t.startGen}</button>
+          </>)}
+        </section>
+      ) : null}
+
+      <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={onImport} />
+      <AddGameModal open={modal} onClose={() => setModal(false)} onSave={saveGame} t={t} />
+      <SettingsModal open={cfgOpen} onClose={() => setCfgOpen(false)} cfg={cfg} onSave={saveCfg} t={t} claudeAvailable={!!claudeSample} />
+      {toast ? <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 brutal-sm rounded-xl px-4 py-2.5 bg-[var(--accent)] text-[#0b0b0f] font-bold fade-in">{toast}</div> : null}
+      <footer className="mt-14 pt-6 border-t border-white/10 text-[12px] text-[var(--muted)] leading-relaxed">
+        <p>{t.footer}</p><p className="mt-1">Pokémon © Nintendo / Game Freak / Creatures. Fan-made tool, not affiliated.</p>
+      </footer>
+    </div>
+  );
+}
+function mergeSources(a, b) { const out = [], seen = new Set(); [...(a || []), ...(b || [])].forEach(s => { if (s?.url && !seen.has(s.url)) { seen.add(s.url); out.push(s); } }); return out; }
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

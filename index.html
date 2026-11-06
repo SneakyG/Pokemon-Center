@@ -439,7 +439,13 @@ function planPrompt(game) {
 ${PHASE_DEF}
 ${STARTER_RULE(game)}
 
-TASK: Plan the optimal 6-Pokémon walkthrough team for each phase. The team should evolve naturally between phases (mostly the same line, evolved), with clear type coverage against the major battles of that phase.
+TASK: Plan the OPTIMAL 6-Pokémon walkthrough team for each phase, judged against that phase's major battles (type coverage, speed, bulk, movepool, availability).
+TEAM CHANGES BETWEEN PHASES:
+- Start from the previous phase's team. Keep a member (evolved) when it is still among the best choices for the next phase.
+- Swap a member out ONLY when a clearly better option becomes available in this game during or just before that phase (e.g. a stronger Pokémon found later, a type the team badly needs for upcoming battles, a member that falls off). Weigh the cost of training a newcomer: prefer newcomers caught at a level close to the team, and mention Exp. Share / Rare Candy style catch-up only if this game has it.
+- Avoid swaps in the "end" phase unless the payoff for the Elite Four / final battles is large.
+- If the early team is already optimal, keep it to the end and leave "changes" empty — do not change for the sake of change.
+- Every phase's "roster" must still have exactly 6 Pokémon.
 Reply with ONLY one JSON object, no prose, in exactly this shape:
 {
   "notes": {"vi": "...", "en": "..."},
@@ -449,13 +455,14 @@ Reply with ONLY one JSON object, no prose, in exactly this shape:
       "levelRange": "Lv. 5 – 25",
       "tip": {"vi": "...", "en": "..."},
       "battles": [ {"leader": "Roark", "place": "Oreburgh City", "type": "rock", "ace": "Cranidos Lv. 14", "counters": ["Monferno"]} ],
-      "roster": [ {"name": "Monferno", "dex": 391, "types": ["fire","fighting"]} ]
+      "roster": [ {"name": "Monferno", "dex": 391, "types": ["fire","fighting"]} ],
+      "changes": []
     },
-    "mid":   { ...same keys... },
+    "mid":   { ...same keys..., "changes": [ {"in": "Gyarados", "out": "Bibarel", "why": {"vi": "...", "en": "..."}} ] },
     "end":   { ...same keys..., "mascot": {"name": "...", "dex": 0, "types": ["..."], "note": {"vi": "...", "en": "..."}} or null }
   }
 }
-"label" names the milestones this phase covers in this game. "battles" lists every major battle of the phase in story order (3–6 entries), with the leader's ace and level from THIS game. "counters" use names from that phase's roster. "roster" has exactly 6 Pokémon in the form used during that phase (national dex number).`;
+"label" names the milestones this phase covers in this game. "battles" lists every major battle of the phase in story order (3–6 entries), with the leader's ace and level from THIS game. "counters" use names from that phase's roster. "roster" has exactly 6 Pokémon in the form used during that phase (national dex number). "changes" lists ONLY real swaps versus the previous phase ("in" = Pokémon name as in this roster, "out" = the member it replaces, "why" = one or two sentences on why it is better for this phase and when/where to get it); evolutions are not changes; early has "changes": [].`;
 }
 
 function phasePrompt(game, phaseKey, ph) {
@@ -466,7 +473,8 @@ ${PHASE_DEF}
 ${game.starter ? `The player's starter is ${game.starter}; keep its line exactly as planned.
 ` : ''}You already planned this team for the "${phaseKey}" phase (${ph.label?.en || ''}, ${ph.levelRange || ''}):
 ${JSON.stringify(ph.roster)}
-Major battles of this phase: ${JSON.stringify((ph.battles || []).map(b => `${b.leader} (${b.type}, ace ${b.ace})`))}
+${(ph.changes || []).length ? `New to the team in this phase (swaps): ${JSON.stringify(ph.changes.map(c => ({ in: c.in, out: c.out, why: c.why?.en })))}. For these, "loc" must say where/when to get them and "lv" should reflect catching up.
+` : ''}Major battles of this phase: ${JSON.stringify((ph.battles || []).map(b => `${b.leader} (${b.type}, ace ${b.ace})`))}
 
 TASK: Give the full walkthrough build of EACH of these 6 Pokémon, as it should be set up during THIS phase (moves it can actually have by then).
 Reply with ONLY one JSON object {"team": [ ...6 objects... ]}, no prose, each team object exactly in this shape:
@@ -516,6 +524,7 @@ function normPlanPhase(p) {
       counters: (Array.isArray(b?.counters) ? b.counters : []).map(String).slice(0, 4)
     })),
     roster: (Array.isArray(p.roster) ? p.roster : []).slice(0, 6).map(r => ({ name: String(r?.name || '?'), dex: Number(r?.dex) || 0, types: (Array.isArray(r?.types) ? r.types : [r?.types]).filter(Boolean).slice(0, 2).map(asType) })),
+    changes: (Array.isArray(p.changes) ? p.changes : []).slice(0, 6).filter(c => c && c.in).map(c => ({ in: String(c.in), out: c.out ? String(c.out) : '', why: asT(c.why) })),
     mascot: p.mascot && p.mascot.name ? { name: String(p.mascot.name), dex: Number(p.mascot.dex) || 0, types: (p.mascot.types || []).slice(0, 2).map(asType), note: asT(p.mascot.note) } : null,
     team: null
   };
@@ -910,7 +919,7 @@ const UI = {
       fileWarn:'File cấu hình chứa API key: cất ở máy của bạn, đừng tải lên GitHub hay gửi cho người khác.',
       privacy:'Key chỉ lưu trong trình duyệt này. Lưu ý: dữ liệu gửi tới gói free của Gemini có thể được Google dùng để cải thiện sản phẩm.', models:'model khả dụng' },
     storageOff:'Trình duyệt đang chặn lưu dữ liệu cho trang này (thường do tab ẩn danh hoặc cài đặt xóa dữ liệu trang khi đóng). Cấu hình AI và đội hình sẽ mất khi đóng tab. Hãy mở bằng tab thường, cho phép trang này lưu dữ liệu, hoặc dùng "Nạp file cấu hình" trong Cấu hình AI.',
-    triedModels:'Đã bỏ qua:',
+    triedModels:'Đã bỏ qua:', newMember:'Mới vào đội', oldPlan:'Đội này được tạo bằng bản cũ, khi AI còn bị yêu cầu giữ nguyên 6 con. Bấm "Tạo lại" để AI tối ưu và đổi Pokémon giữa các giai đoạn khi cần.', changesTitle:'Thay đổi so với', noChanges:'Giữ nguyên đội hình, chỉ tiến hóa. Đội hiện tại vẫn là lựa chọn tối ưu cho giai đoạn này nên không cần đổi.',
     starterTitle:'Chọn Pokémon khởi đầu', starterSub:'Đội hình sẽ được build xoay quanh starter bạn chọn: bù điểm yếu hệ và tránh trùng vai trò.', starterAuto:'Để AI chọn', starterAutoSub:'Starter mạnh nhất', starterCached:'Đã có đội hình',
     pickFirst:'Chọn một starter ở trên để build đội hình', pickFirstSub:'Mỗi starter có một đội hình riêng và được lưu lại, đổi qua lại không tốn thêm lượt AI.', starterChip:'Starter',
     starterField:'Starter (tùy chọn, cách nhau bằng dấu phẩy)',
@@ -956,7 +965,7 @@ const UI = {
       fileWarn:'The settings file contains your API keys: keep it on your computer, never upload it to GitHub or share it.',
       privacy:'Keys are stored only in this browser. Note: data sent to Gemini\'s free tier may be used by Google to improve its products.', models:'models available' },
     storageOff:'This browser is blocking storage for this page (usually a private window or a "clear site data on close" setting). AI settings and teams will be lost when the tab closes. Use a normal window, allow this site to store data, or use "Load settings file" in AI settings.',
-    triedModels:'Skipped:',
+    triedModels:'Skipped:', newMember:'New member', oldPlan:'This team was made by an older version that kept the same 6 throughout. Press "Regenerate" to let the AI optimise and swap Pokémon between phases where it helps.', changesTitle:'Changes since', noChanges:'Same team, just evolved. The current team is still the best choice for this phase, so no swaps are needed.',
     starterTitle:'Choose your starter', starterSub:'The team is built around the starter you pick: covering its type weaknesses and avoiding overlapping roles.', starterAuto:'Let AI pick', starterAutoSub:'Strongest starter', starterCached:'Team ready',
     pickFirst:'Pick a starter above to build the team', pickFirstSub:'Each starter gets its own saved team, so switching between them costs no extra AI calls.', starterChip:'Starter',
     starterField:'Starters (optional, comma-separated)',
@@ -1099,7 +1108,7 @@ function VMark({ state, t }) {
 }
 
 /* ---------- Pokémon card (with PokéAPI verification) ---------- */
-function PokemonCard({ mon, lang, t }) {
+function PokemonCard({ mon, lang, t, isNew }) {
   const primary = mon.types?.[0] || 'normal';
   const [imgOk, setImgOk] = useState(true);
   const nat = mon.nature; const v = mon.verify;
@@ -1118,6 +1127,7 @@ function PokemonCard({ mon, lang, t }) {
           <div className="flex items-center gap-2 flex-wrap">
             {mon.dex ? <span className="dex-num text-[11px] text-[var(--muted)]">#{String(mon.dex).padStart(3,'0')}</span> : null}
             {mon.lv ? <span className="chip bg-white/10 text-white/80">{mon.lv}</span> : null}
+            {isNew ? <span className="chip" style={{ background:'var(--accent)', color:'#0b0b0f' }}>★ {t.newMember}</span> : null}
             {v?.status === 'ok' ? <span className="chip" title={t.vOk} style={{ background: okMoves === (mon.moves||[]).length ? '#163a24' : '#3d2b0e', color: okMoves === (mon.moves||[]).length ? '#7ff0a3' : '#ffcf7a' }}>{t.verified} {okMoves}/{(mon.moves||[]).length}</span>
               : v?.status === 'novg' ? <span className="chip bg-white/5 text-[var(--muted)]" title={t.vNoVG}>{t.vNoVG}</span>
               : v?.status === 'unknown' ? <span className="chip" style={{ background:'#3d2b0e', color:'#ffcf7a' }}>{t.vUnknown}</span> : null}
@@ -1490,7 +1500,7 @@ function App() {
         const ctx = research.length ? `\n\nWEB RESEARCH (snippets — prefer these over memory when they disagree):\n${research.map(r => `- ${r.title} (${r.url}): ${r.content}`).join('\n').slice(0, 9000)}` : '';
         const { json: plan, sources, note, used } = await askJSON(cfg, planPrompt(g) + ctx, { signal, sampleFn: claudeSample, onAttempt: (l) => setGen(g.id, s => ({ ...s, attempt: l, attemptAt: Date.now() })), onSkip: (l) => setGen(g.id, s => ({ ...s, tried: [...(s.tried || []), l].slice(-6) })) });
         if (!plan?.phases || !PHASES.every(k => plan.phases[k]?.roster?.length)) throw new LLMError('bad_shape', 'plan');
-        d = { ai: true, provider: used || providerLabel(cfg), generatedAt: new Date().toISOString(), notes: asT(plan.notes), searchNote: note,
+        d = { ai: true, planV: 2, provider: used || providerLabel(cfg), generatedAt: new Date().toISOString(), notes: asT(plan.notes), searchNote: note,
           sources: mergeSources(research.map(r => ({ title: r.title, url: r.url })), sources), phases: {} };
         PHASES.forEach(k => d.phases[k] = normPlanPhase(plan.phases[k]));
         putData(g.id, d); step(g.id, 'plan', 'done', String(used || '').replace(/^\w+ · /, ''));
@@ -1635,8 +1645,26 @@ function App() {
               <BattleStrip battles={ph.battles || []} lang={lang} t={t} />
             </div>
           </section>
+          {phase !== 'early' && data.ai && !data.planV ? (
+            <p className="mt-6 text-[13px] text-[#ffcf7a] border-l-4 border-[#9a6c1f] pl-3">{t.oldPlan}</p>
+          ) : phase !== 'early' ? (
+            <section className="mt-6 glass rounded-2xl p-4 sm:p-5 border-2 border-white/15">
+              <div className="flex items-center gap-2 text-[11px] uppercase tracking-[.14em] font-extrabold text-[var(--accent)] mb-2"><Icon d={IC.refresh} className="w-3.5 h-3.5" />{t.changesTitle} {t.phases[phase === 'mid' ? 'early' : 'mid']}</div>
+              {(ph.changes || []).length ? (
+                <ul className="grid gap-2">
+                  {ph.changes.map((c, i) => (
+                    <li key={i} className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[14px] min-w-0">
+                      {c.out ? <span className="chip" style={{ background:'#3d1717', color:'#ff9a9a' }}>− {c.out}</span> : null}
+                      <span className="chip" style={{ background:'#163a24', color:'#7ff0a3' }}>+ {c.in}</span>
+                      {c.why ? <span className="text-white/80 text-[13px] min-w-0">{one(c.why, lang)}</span> : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : <p className="text-[14px] text-white/80">{t.noChanges}</p>}
+            </section>
+          ) : null}
           <section className="mt-8 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 stagger">
-            {ph.team?.length ? ph.team.map((m, i) => <PokemonCard key={m.name + i} mon={m} lang={lang} t={t} />) : (ph.roster || []).map((r, i) => <SkeletonCard key={r.name + i} r={r} lang={lang} />)}
+            {ph.team?.length ? ph.team.map((m, i) => <PokemonCard key={m.name + i} mon={m} lang={lang} t={t} isNew={(ph.changes || []).some(c => normKey(c.in) === normKey(m.name))} />) : (ph.roster || []).map((r, i) => <SkeletonCard key={r.name + i} r={r} lang={lang} />)}
           </section>
           {ph.mascot ? (
             <section className="mt-8 rounded-2xl p-4 sm:p-5 border-2 border-dashed flex gap-4 items-center glass" style={{ borderColor: `${tc(ph.mascot.types?.[0])}aa` }}>

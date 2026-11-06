@@ -532,6 +532,10 @@ const DEFAULT_CFG = { provider: 'gemini', geminiKey: '', geminiModels: DEFAULT_G
 const loadCfg = () => { const c = { ...DEFAULT_CFG, ...lsGet(LS_CFG, {}) };
   if (c.geminiModel && !lsGet(LS_CFG, {}).geminiModels) c.geminiModels = [c.geminiModel, ...DEFAULT_GEMINI_MODELS.split(',').map(s => s.trim()).filter(m => m !== c.geminiModel)].join(', ');
   if (c.groqModel && !lsGet(LS_CFG, {}).groqModels) c.groqModels = c.groqModel; return c; };
+/* Can this browser actually keep data for this address? (fails in some private modes / strict privacy settings) */
+const storageWorks = (() => { try { const k = '__pwtp_probe'; localStorage.setItem(k, '1'); const ok = localStorage.getItem(k) === '1'; localStorage.removeItem(k); return ok; } catch { return false; } })();
+const askPersist = () => { try { navigator.storage?.persist?.(); } catch {} };
+const CFG_FILE_TAG = 'pokemon-team-planner-config';
 const modelList = (s) => String(s || '').split(/[,\n]/).map(x => x.trim()).filter(Boolean);
 
 class LLMError extends Error { constructor(code, message, status, extra) { super(message); this.code = code; this.status = status; Object.assign(this, extra || {}); } }
@@ -879,7 +883,11 @@ const UI = {
       tavilyNote:'Tavily tìm Bulbapedia / Serebii / PokémonDB và đưa kết quả cho AI. Để trống nếu không dùng.', getKey:'Lấy key miễn phí', save:'Lưu', cancel:'Hủy',
       models_order:'Thứ tự model (tự chuyển khi model quá tải / hết lượt)', models_hint:'Cách nhau bằng dấu phẩy. Bấm "Tải danh sách model" để lấy đúng tên model key của bạn dùng được.',
       backup:'Dùng nhà cung cấp còn lại làm dự phòng', backupNote:'Khi mọi model Gemini đều quá tải hoặc hết lượt, tự chuyển sang Groq (và ngược lại).',
+      savedFor:'Cấu hình đang lưu cho địa chỉ:', originNote:'Mỗi địa chỉ (GitHub Pages, localhost qua start.bat, mở file trực tiếp) giữ cấu hình riêng. Hãy luôn mở cùng một địa chỉ, ví dụ trang GitHub Pages.',
+      exportCfg:'Tải file cấu hình', importCfg:'Nạp file cấu hình', fileLoaded:'Đã nạp cấu hình từ file. Bấm Lưu để áp dụng.', fileBad:'File không phải cấu hình của ứng dụng này.',
+      fileWarn:'File cấu hình chứa API key: cất ở máy của bạn, đừng tải lên GitHub hay gửi cho người khác.',
       privacy:'Key chỉ lưu trong trình duyệt này. Lưu ý: dữ liệu gửi tới gói free của Gemini có thể được Google dùng để cải thiện sản phẩm.', models:'model khả dụng' },
+    storageOff:'Trình duyệt đang chặn lưu dữ liệu cho trang này (thường do tab ẩn danh hoặc cài đặt xóa dữ liệu trang khi đóng). Cấu hình AI và đội hình sẽ mất khi đóng tab. Hãy mở bằng tab thường, cho phép trang này lưu dữ liệu, hoặc dùng "Nạp file cấu hình" trong Cấu hình AI.',
     starterTitle:'Chọn Pokémon khởi đầu', starterSub:'Đội hình sẽ được build xoay quanh starter bạn chọn: bù điểm yếu hệ và tránh trùng vai trò.', starterAuto:'Để AI chọn', starterAutoSub:'Starter mạnh nhất', starterCached:'Đã có đội hình',
     pickFirst:'Chọn một starter ở trên để build đội hình', pickFirstSub:'Mỗi starter có một đội hình riêng và được lưu lại, đổi qua lại không tốn thêm lượt AI.', starterChip:'Starter',
     starterField:'Starter (tùy chọn, cách nhau bằng dấu phẩy)',
@@ -919,7 +927,11 @@ const UI = {
       tavilyNote:'Tavily searches Bulbapedia / Serebii / PokémonDB and hands the results to the AI. Leave empty to skip.', getKey:'Get a free key', save:'Save', cancel:'Cancel',
       models_order:'Model order (switches automatically on overload / quota)', models_hint:'Comma-separated. Press "Load model list" to get the exact names your key can use.',
       backup:'Use the other provider as backup', backupNote:'When every Gemini model is overloaded or out of quota, switch to Groq automatically (and vice versa).',
+      savedFor:'Settings are saved for this address:', originNote:'Each address (GitHub Pages, localhost via start.bat, opening the file directly) keeps its own settings. Always open the same address, e.g. your GitHub Pages site.',
+      exportCfg:'Download settings file', importCfg:'Load settings file', fileLoaded:'Settings loaded from file. Press Save to apply.', fileBad:'That file isn\'t a settings file for this app.',
+      fileWarn:'The settings file contains your API keys: keep it on your computer, never upload it to GitHub or share it.',
       privacy:'Keys are stored only in this browser. Note: data sent to Gemini\'s free tier may be used by Google to improve its products.', models:'models available' },
+    storageOff:'This browser is blocking storage for this page (usually a private window or a "clear site data on close" setting). AI settings and teams will be lost when the tab closes. Use a normal window, allow this site to store data, or use "Load settings file" in AI settings.',
     starterTitle:'Choose your starter', starterSub:'The team is built around the starter you pick: covering its type weaknesses and avoiding overlapping roles.', starterAuto:'Let AI pick', starterAutoSub:'Strongest starter', starterCached:'Team ready',
     pickFirst:'Pick a starter above to build the team', pickFirstSub:'Each starter gets its own saved team, so switching between them costs no extra AI calls.', starterChip:'Starter',
     starterField:'Starters (optional, comma-separated)',
@@ -1218,6 +1230,18 @@ function StarterPicker({ list, value, onPick, cached, t, lang }) {
 /* ---------- AI settings modal ---------- */
 function SettingsModal({ open, onClose, cfg, onSave, t, claudeAvailable }) {
   const [f, setF] = useState(cfg); const [models, setModels] = useState([]); const [msg, setMsg] = useState('');
+  const [fileMsg, setFileMsg] = useState(''); const cfgFileRef = useRef(null);
+  const exportCfg = () => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify({ _type: CFG_FILE_TAG, savedAt: new Date().toISOString(), config: f }, null, 2)], { type: 'application/json' }));
+    a.download = 'pokemon-team-planner-config.json'; a.click();
+  };
+  const importCfg = (e) => {
+    const file = e.target.files?.[0]; if (!file) return; const r = new FileReader();
+    r.onload = () => { try { const j = JSON.parse(r.result); const c = j?._type === CFG_FILE_TAG ? j.config : j;
+      if (!c || typeof c !== 'object' || !('provider' in c)) throw 0; setF({ ...DEFAULT_CFG, ...c }); setFileMsg(t.cfg.fileLoaded); } catch { setFileMsg(t.cfg.fileBad); } };
+    r.readAsText(file); e.target.value = '';
+  };
   useEffect(() => { if (open) { setF(cfg); setMsg(''); } }, [open]);
   if (!open) return null;
   const c = t.cfg;
@@ -1291,6 +1315,18 @@ function SettingsModal({ open, onClose, cfg, onSave, t, claudeAvailable }) {
           <label className="grid gap-1 text-[13px] font-semibold">{c.tavily} · <a className="text-[#8db8ff] underline" href="https://app.tavily.com" target="_blank" rel="noopener">{c.getKey} ↗</a>
             <input id="cfg-tkey" type="password" autoComplete="off" className={field} value={f.tavilyKey} onChange={e => setF({ ...f, tavilyKey: e.target.value.trim() })} placeholder="tvly-…" />
             <span className="text-[12px] font-normal text-[var(--muted)]">{c.tavilyNote}</span></label>
+          <div className="grid gap-2 rounded-xl p-3 border border-white/15">
+            <div className="text-[12.5px]"><span className="text-[var(--muted)]">{c.savedFor} </span><span className="dex-num font-bold break-all">{location.protocol === 'file:' ? 'file://' : location.origin}</span></div>
+            <p className="text-[12px] text-[var(--muted)]">{c.originNote}</p>
+            {!storageWorks ? <p className="text-[12.5px] font-semibold text-[#ff9a9a]">{t.storageOff}</p> : null}
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={exportCfg} className="rounded-xl px-3 py-2 border-2 border-white/40 font-bold text-[12.5px] inline-flex items-center gap-1.5"><Icon d={IC.down} className="w-3.5 h-3.5" />{c.exportCfg}</button>
+              <button type="button" onClick={() => cfgFileRef.current?.click()} className="rounded-xl px-3 py-2 border-2 border-white/40 font-bold text-[12.5px] inline-flex items-center gap-1.5"><Icon d={IC.up} className="w-3.5 h-3.5" />{c.importCfg}</button>
+              <input ref={cfgFileRef} type="file" accept="application/json,.json" className="hidden" onChange={importCfg} />
+            </div>
+            {fileMsg ? <p className="text-[12.5px] font-semibold text-[#7ff0a3]">{fileMsg}</p> : null}
+            <p className="text-[12px] text-[#ffcf7a]">{c.fileWarn}</p>
+          </div>
           <p className="text-[12px] text-[var(--muted)] border-l-4 border-white/20 pl-3">{c.privacy}</p>
           <div className="flex gap-3 justify-end">
             <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-xl border-2 border-white/40 font-bold hover:bg-white/5">{c.cancel}</button>
@@ -1464,7 +1500,7 @@ function App() {
   const stop = () => (ctlRef.current[dk] || []).forEach(c => c.abort());
   const retry = () => generate(job, { onlyMissing: true });
   const regenerate = () => { dropData(dk); generate(job); };
-  const saveCfg = (c) => { delete SEARCH_REFUSED.gemini; delete SEARCH_REFUSED.groq; setCfg(c); lsSet(LS_CFG, c); setCfgOpen(false); autoStarted.current = {}; };
+  const saveCfg = (c) => { delete SEARCH_REFUSED.gemini; delete SEARCH_REFUSED.groq; setCfg(c); lsSet(LS_CFG, c); askPersist(); setCfgOpen(false); autoStarted.current = {}; };
   const saveGame = (g) => { setCustomGames(cg => [...cg, g]); setModal(false); setGameId(g.id); setPhase('early'); };
   const removeGame = () => { if (!armRemove) { setArmRemove(true); return; } stop(); Object.keys(dataRef.current).filter(k => k === game.id || k.startsWith(game.id + '::')).forEach(dropData); setCustomGames(cg => cg.filter(g => g.id !== game.id)); setGameId('platinum'); };
   const exportJson = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify({ game, starter: chosen || null, ...data }, null, 2)], { type: 'application/json' })); a.download = `${game.id}${chosen ? '-' + normKey(chosen) : ''}-walkthrough.json`; a.click(); };
@@ -1549,6 +1585,8 @@ function App() {
           </button>
         ))}
       </nav>
+
+      {!storageWorks ? <div className="mt-6 rounded-2xl p-4 border-2 border-[#9a3a3a] bg-[#3d1717]/60 text-[13.5px] leading-relaxed"><span className="font-black text-[#ff9a9a]">⚠ </span>{t.storageOff}</div> : null}
 
       {showPanel ? <GenPanel gen={gen} t={t} onStop={stop} onRetry={retry} /> : null}
 

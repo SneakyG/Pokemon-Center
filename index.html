@@ -524,6 +524,7 @@ function normPlanPhase(p) {
       counters: (Array.isArray(b?.counters) ? b.counters : []).map(String).slice(0, 4)
     })),
     roster: (Array.isArray(p.roster) ? p.roster : []).slice(0, 6).map(r => ({ name: String(r?.name || '?'), dex: Number(r?.dex) || 0, types: (Array.isArray(r?.types) ? r.types : [r?.types]).filter(Boolean).slice(0, 2).map(asType) })),
+    notes: asT(p.notes),
     changes: (Array.isArray(p.changes) ? p.changes : []).slice(0, 6).filter(c => c && c.in).map(c => ({ in: String(c.in), out: c.out ? String(c.out) : '', why: asT(c.why) })),
     mascot: p.mascot && p.mascot.name ? { name: String(p.mascot.name), dex: Number(p.mascot.dex) || 0, types: (p.mascot.types || []).slice(0, 2).map(asType), note: asT(p.mascot.note) } : null,
     team: null
@@ -729,8 +730,8 @@ async function paGet(path, signal) {
   return p;
 }
 /* small persistent cache of trimmed results */
-const paCacheGet = (k) => lsGet('pa:' + k, null);
-const paCacheSet = (k, v) => lsSet('pa:' + k, v);
+const paCacheGet = (k) => lsGet('pa2:' + k, null);
+const paCacheSet = (k, v) => lsSet('pa2:' + k, v);
 
 function slugCandidates(name) {
   let n = String(name || '').trim();
@@ -766,6 +767,7 @@ async function paPokemon(name, gameId, signal) {
     types: pk.types.map(t => t.type.name), pastTypes: (pk.past_types || []).map(p => ({ g: GEN_NUM[p.generation.name] || 0, t: p.types.map(t => t.type.name) })),
     abilities: pk.abilities.map(a => ({ n: a.ability.name, h: a.is_hidden, s: a.slot })),
     pastAbilities: (pk.past_abilities || []).map(p => ({ g: GEN_NUM[p.generation.name] || 0, a: p.abilities.map(a => ({ n: a.ability?.name || null, h: a.is_hidden, s: a.slot })) })),
+    species: species?.name || pk.name, chainUrl: species?.evolution_chain?.url || null,
     evolvesFrom: species?.evolves_from_species?.name || null, hasVG: moves.length > 0, moves
   };
   paCacheSet(ck, trimmed);
@@ -862,11 +864,93 @@ async function verifyMon(mon, game, signal) {
   return { bad, p };
 }
 
+/* Lowest level at which a species can exist through level-up evolutions (0 = no level requirement) */
+async function formMinLevel(p, signal) {
+  if (!p?.chainUrl) return 0;
+  const ck = 'ev:' + p.species; const c = paCacheGet(ck); if (c !== null && c !== undefined) return c;
+  const chain = await paGet(p.chainUrl, signal);
+  let found = 0;
+  const walk = (node, acc) => {
+    const lv = (node.evolution_details || []).filter(d => d.trigger?.name === 'level-up' && d.min_level).map(d => d.min_level);
+    const here = Math.max(acc, lv.length ? Math.min(...lv) : 0);
+    if (node.species?.name === p.species) { found = here; return true; }
+    return (node.evolves_to || []).some(n => walk(n, here));
+  };
+  if (chain?.chain) walk(chain.chain, 0);
+  paCacheSet(ck, found); return found;
+}
+const levelCap = (ph) => {
+  const nums = String(ph?.levelRange || '').match(/\d+/g)?.map(Number) || [];
+  if (nums.length) return Math.max(...nums);
+  const aces = (ph?.battles || []).map(b => +(String(b.ace).match(/(\d+)\s*$/) || [])[1]).filter(Boolean);
+  return aces.length ? Math.max(...aces) + 2 : 0;
+};
+/* Downgrade any Pokémon whose form can't be reached by the phase's level cap (e.g. Infernape Lv36 in an early team capped at 25) */
+async function fixForms(team, cap, game, signal) {
+  if (!cap) return;
+  const gid = game.paId || game.id;
+  for (const mon of team) {
+    let p; try { p = await paPokemon(mon.name, gid, signal); } catch (e) { if (e.code === 'cancelled') throw e; continue; }
+    if (!p) continue;
+    let need = await formMinLevel(p, signal); if (need <= cap) continue;
+    const from = mon.name; let cur = p;
+    while (cur?.evolvesFrom && need > cap) { cur = await paPokemon(cur.evolvesFrom, gid, signal); need = cur ? await formMinLevel(cur, signal) : 0; }
+    if (!cur || cur.name === p.name) continue;
+    const minFrom = await formMinLevel(p, signal);
+    mon.name = prettyName(cur.species || cur.name); mon.dex = cur.dex; mon.types = typesForGen(cur, Number(game.gen) || 9);
+    mon.formFix = { from, need: minFrom, cap };
+  }
+}
+
 /* Legal-move digest for the repair prompt */
 function learnsetDigest(p) {
   const lv = [], tm = [], tu = [];
   for (const m of p.moves) for (const [k, l] of m.d) { if (k === 'level-up') lv.push(`${prettyName(m.n)} (Lv ${l})`); else if (k === 'machine') tm.push(prettyName(m.n)); else if (k === 'tutor') tu.push(prettyName(m.n)); }
   return `Level-up: ${[...new Set(lv)].join(', ')}\nTM/HM: ${[...new Set(tm)].join(', ')}\nTutor: ${[...new Set(tu)].join(', ') || '—'}`;
+}
+
+const PHASE_SCOPE = {
+  early: 'the start of the adventure up to and including the 3rd Gym (or the first third of the main story\'s major battles in this game\'s own structure)',
+  mid: 'the 4th to the 7th Gym (or the middle third of the major story battles)',
+  end: 'the 8th Gym, the Elite Four and the Champion (or the final third: last major battles and the final story boss)'
+};
+function phaseFullPrompt(game, key, prev) {
+  const prevTxt = prev?.team?.length
+    ? `The player's team at the END of the previous phase (already verified) was:\n${prev.team.map(m => `- ${m.name} (${m.lv || '?'}) — ${one(m.role?.label, 'en')}`).join('\n')}\nPrevious level range: ${prev.levelRange || '?'}.
+DECIDE THE TEAM FOR THIS PHASE: keep each member that is still among the best choices (evolving it only if it reaches its evolution level within this phase). Swap a member out ONLY when a clearly better option becomes available during or just before this phase (stronger Pokémon found here, a type the team badly needs for these battles, a member that falls off). Weigh training cost: prefer newcomers caught near the team's level. ${key === 'end' ? 'Avoid swaps now unless the payoff for the Elite Four / final battles is large. ' : ''}If the current team is already optimal, keep it and return "changes": [] — do not change for the sake of change.`
+    : 'This is the start of the game: pick the best early team from Pokémon available in this phase.';
+  return `${COMMON_RULES(game)}
+${STARTER_RULE(game)}
+
+PLAN ONLY THIS PHASE: "${key}" = ${PHASE_SCOPE[key]}.
+${prevTxt}
+
+FORM RULE (very important): every Pokémon must be in a form it can actually have during THIS phase. Use this game's level-up evolution levels and the phase's level range: e.g. a starter's 3rd stage (usually Lv. 32–36+) can NOT be in an early team, and pseudo-legendary final forms (Lv. 50+) rarely appear before the end. Stone / trade / friendship evolutions only if the item or condition is available in a normal playthrough by this phase.
+
+TASK: Reply with ONLY one JSON object, no prose:
+{
+  "label": {"vi": "Gym 1 – Gym 3", "en": "Gym 1 – Gym 3"},
+  "levelRange": "Lv. 5 – 25",
+  "tip": {"vi": "...", "en": "..."},
+  "battles": [ {"leader": "Roark", "place": "Oreburgh City", "type": "rock", "ace": "Cranidos Lv. 14", "counters": ["Monferno"]} ],
+  "changes": [ {"in": "Gyarados", "out": "Bibarel", "why": {"vi": "...", "en": "..."}} ],
+  ${key === 'end' ? '"mascot": {"name": "...", "dex": 0, "types": ["..."], "note": {"vi": "...", "en": "..."}} or null,' : '"mascot": null,'}
+  ${key === 'early' ? '"notes": {"vi": "...", "en": "..."},' : ''}
+  "team": [ ...exactly 6 Pokémon builds... ]
+}
+"levelRange" = realistic levels of the player's team during this phase. "battles" = every major battle of this phase in story order (3–6), with the leader's ace and its level in THIS game; "counters" use names from "team". "changes" = only real swaps versus the previous team (evolutions are not changes; ${key === 'early' ? 'must be []' : 'empty if none'}); "why" says why it is better and where/when to get it.
+Each "team" entry exactly in this shape:
+{
+  "name": "Monferno", "dex": 391, "types": ["fire","fighting"], "lv": "Lv. 14 – 26",
+  "loc": {"place": "Route 201", "note": {"vi": "Pokémon khởi đầu (Chimchar)", "en": "Starter (Chimchar)"}},
+  "evo": {"vi": "Chimchar → Monferno (Lv. 14) → Infernape (Lv. 36)", "en": "Chimchar → Monferno (Lv. 14) → Infernape (Lv. 36)"},
+  "ability": {"name": {"vi": "Rực Rỡ", "en": "Blaze"}, "desc": {"vi": "...", "en": "..."}},
+  "nature": {"name": {"vi": "Ngây Thơ", "en": "Naive"}, "up": "spe", "down": "spd"},
+  "item": {"name": {"vi": "Quả Oran", "en": "Oran Berry"}, "note": {"vi": "...", "en": "..."}},
+  "moves": [ {"name": {"vi": "Đấm Tốc Độ", "en": "Mach Punch"}, "type": "fighting", "method": {"k": "level", "v": "Lv. 14"}} ],
+  "role": {"label": {"vi": "Mũi Nhọn Tấn Công", "en": "Lead Sweeper"}, "desc": {"vi": "...", "en": "..."}}
+}
+Field rules: "loc.place" = EARLIEST place it can be obtained (for an evolved form, where its first stage is caught; for a newcomer, where/when to get it). "moves" = exactly 4 moves it can have by this phase. "method.k" one of ${METHOD_KEYS.join(', ')}; "method.v" like "Lv. 14", "TM35", "HM02", "Tutor". "nature.up"/"down" among ${STAT_KEYS.join(', ')} (no neutral natures). "item" obtainable by this phase. Use null for "ability"/"nature"/"item" only where the mechanic does not exist in this game. The role description must name which of this phase's battles it handles and why.`;
 }
 
 function repairPrompt(game, phaseKey, items) {
@@ -919,7 +1003,7 @@ const UI = {
       fileWarn:'File cấu hình chứa API key: cất ở máy của bạn, đừng tải lên GitHub hay gửi cho người khác.',
       privacy:'Key chỉ lưu trong trình duyệt này. Lưu ý: dữ liệu gửi tới gói free của Gemini có thể được Google dùng để cải thiện sản phẩm.', models:'model khả dụng' },
     storageOff:'Trình duyệt đang chặn lưu dữ liệu cho trang này (thường do tab ẩn danh hoặc cài đặt xóa dữ liệu trang khi đóng). Cấu hình AI và đội hình sẽ mất khi đóng tab. Hãy mở bằng tab thường, cho phép trang này lưu dữ liệu, hoặc dùng "Nạp file cấu hình" trong Cấu hình AI.',
-    triedModels:'Đã bỏ qua:', newMember:'Mới vào đội', oldPlan:'Đội này được tạo bằng bản cũ, khi AI còn bị yêu cầu giữ nguyên 6 con. Bấm "Tạo lại" để AI tối ưu và đổi Pokémon giữa các giai đoạn khi cần.', changesTitle:'Thay đổi so với', noChanges:'Giữ nguyên đội hình, chỉ tiến hóa. Đội hiện tại vẫn là lựa chọn tối ưu cho giai đoạn này nên không cần đổi.',
+    triedModels:'Đã bỏ qua:', newMember:'Mới vào đội', gen_search:'Tìm web', formFix:'Đã hạ dạng: AI đề xuất {from} nhưng dạng này cần Lv. {need}, vượt mức Lv. {cap} của giai đoạn, nên dùng {to} (PokéAPI).', oldPlan:'Đội này được tạo bằng bản cũ (lập cả 3 giai đoạn một lúc, chưa kiểm tra cấp tiến hóa). Bấm "Tạo lại" để AI tra cứu lần lượt Early → Mid → End và đổi Pokémon khi cần.', changesTitle:'Thay đổi so với', noChanges:'Giữ nguyên đội hình, chỉ tiến hóa. Đội hiện tại vẫn là lựa chọn tối ưu cho giai đoạn này nên không cần đổi.',
     starterTitle:'Chọn Pokémon khởi đầu', starterSub:'Đội hình sẽ được build xoay quanh starter bạn chọn: bù điểm yếu hệ và tránh trùng vai trò.', starterAuto:'Để AI chọn', starterAutoSub:'Starter mạnh nhất', starterCached:'Đã có đội hình',
     pickFirst:'Chọn một starter ở trên để build đội hình', pickFirstSub:'Mỗi starter có một đội hình riêng và được lưu lại, đổi qua lại không tốn thêm lượt AI.', starterChip:'Starter',
     starterField:'Starter (tùy chọn, cách nhau bằng dấu phẩy)',
@@ -965,7 +1049,7 @@ const UI = {
       fileWarn:'The settings file contains your API keys: keep it on your computer, never upload it to GitHub or share it.',
       privacy:'Keys are stored only in this browser. Note: data sent to Gemini\'s free tier may be used by Google to improve its products.', models:'models available' },
     storageOff:'This browser is blocking storage for this page (usually a private window or a "clear site data on close" setting). AI settings and teams will be lost when the tab closes. Use a normal window, allow this site to store data, or use "Load settings file" in AI settings.',
-    triedModels:'Skipped:', newMember:'New member', oldPlan:'This team was made by an older version that kept the same 6 throughout. Press "Regenerate" to let the AI optimise and swap Pokémon between phases where it helps.', changesTitle:'Changes since', noChanges:'Same team, just evolved. The current team is still the best choice for this phase, so no swaps are needed.',
+    triedModels:'Skipped:', newMember:'New member', gen_search:'Web search', formFix:'Form corrected: the AI suggested {from}, but it needs Lv. {need}, above this phase\'s Lv. {cap} cap, so {to} is used instead (PokéAPI).', oldPlan:'This team was made by an older version (all three phases at once, no evolution-level check). Press "Regenerate" to research Early → Mid → End in order and swap Pokémon where it helps.', changesTitle:'Changes since', noChanges:'Same team, just evolved. The current team is still the best choice for this phase, so no swaps are needed.',
     starterTitle:'Choose your starter', starterSub:'The team is built around the starter you pick: covering its type weaknesses and avoiding overlapping roles.', starterAuto:'Let AI pick', starterAutoSub:'Strongest starter', starterCached:'Team ready',
     pickFirst:'Pick a starter above to build the team', pickFirstSub:'Each starter gets its own saved team, so switching between them costs no extra AI calls.', starterChip:'Starter',
     starterField:'Starters (optional, comma-separated)',
@@ -1137,6 +1221,7 @@ function PokemonCard({ mon, lang, t, isNew }) {
         </div>
       </div>
       {mon.evo ? <p className="text-[12px] text-[var(--muted)] -mt-1 relative">{one(mon.evo, lang)}</p> : null}
+      {mon.formFix ? <p className="text-[12px] -mt-1 relative rounded-lg px-2 py-1.5 bg-[#14284a]/70 border border-[#2c5aa8]/70 text-[#cfe0ff]">⤵ {t.formFix.replace('{from}', mon.formFix.from).replace('{need}', mon.formFix.need).replace('{cap}', mon.formFix.cap).replace('{to}', mon.name)}</p> : null}
       <dl className="grid gap-2.5 text-[13.5px] relative">
         <Row icon={IC.pin} label={t.location}>
           <span className="font-bold">{mon.loc?.place}</span>
@@ -1196,10 +1281,10 @@ function PokemonCard({ mon, lang, t, isNew }) {
 function GenPanel({ gen, t, onStop, onRetry }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const id = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(id); }, []);
-  const steps = [['research', t.gen_research], ['plan', t.gen_plan], ['early', `${t.gen_phase} · ${t.phases.early}`], ['mid', `${t.gen_phase} · ${t.phases.mid}`], ['end', `${t.gen_phase} · ${t.phases.end}`]];
-  const running = Object.values(gen.steps).some(s => s === 'run' || s === 'verify');
+  const steps = [['early', `${t.phases.early} · ${t.phaseSub.early}`], ['mid', `${t.phases.mid} · ${t.phaseSub.mid}`], ['end', `${t.phases.end} · ${t.phaseSub.end}`]];
+  const running = Object.values(gen.steps).some(s => s === 'run' || s === 'verify' || s === 'search');
   const failed = Object.values(gen.steps).some(s => s === 'err');
-  const map = { wait:[t.gen_wait,'#24262f','#c9ccd8'], run:[t.gen_run,'#3d2b0e','#ffcf7a'], verify:[t.gen_verify,'#14284a','#8db8ff'], done:[t.gen_done,'#163a24','#7ff0a3'], err:[t.gen_err,'#3d1717','#ff9a9a'], skip:[t.gen_skip,'#24262f','#7d8194'] };
+  const map = { wait:[t.gen_wait,'#24262f','#c9ccd8'], run:[t.gen_run,'#3d2b0e','#ffcf7a'], verify:[t.gen_verify,'#14284a','#8db8ff'], search:[t.gen_search,'#2c1a4a','#c6a6ff'], done:[t.gen_done,'#163a24','#7ff0a3'], err:[t.gen_err,'#3d1717','#ff9a9a'], skip:[t.gen_skip,'#24262f','#7d8194'] };
   return (
     <section className="mt-6 glass brutal rounded-2xl p-4 sm:p-5 fade-in" aria-live="polite">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1213,7 +1298,7 @@ function GenPanel({ gen, t, onStop, onRetry }) {
           {!running && failed ? <button onClick={onRetry} className="brutal-sm brutal-btn rounded-xl px-3.5 py-2 font-black bg-[var(--accent)] text-[#0b0b0f] flex items-center gap-1.5"><Icon d={IC.refresh} />{t.retry}</button> : null}
         </div>
       </div>
-      <ol className="mt-4 grid gap-2 sm:grid-cols-2">
+      <ol className="mt-4 grid gap-2">
         {steps.map(([k, label]) => { const [l, bg, fg] = map[gen.steps[k]] || map.wait; return (
           <li key={k} className="flex items-center gap-3 rounded-xl px-3 py-2.5 bg-black/30 border border-white/10 min-w-0">
             <span className="flex-1 min-w-0 text-[13.5px] font-semibold truncate">{label}</span>
@@ -1380,6 +1465,7 @@ function SettingsModal({ open, onClose, cfg, onSave, t, claudeAvailable }) {
    APP
    ===================================================================== */
 const PHASES = ['early', 'mid', 'end'];
+const APP_VERSION = 'v2026.11.06-r7 · tra cứu tuần tự + kiểm tra cấp tiến hóa';
 const cfgReady = (c) => c.provider === 'gemini' ? !!c.geminiKey : c.provider === 'groq' ? !!c.groqKey : c.provider === 'claude';
 const providerLabel = (c) => c.provider === 'gemini' ? `Gemini · ${modelList(c.geminiModels)[0] || ''}` : c.provider === 'groq' ? `Groq · ${modelList(c.groqModels)[0] || ''}` : 'Claude';
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -1430,7 +1516,7 @@ function App() {
 
   const putData = (id, d) => { dataRef.current = { ...dataRef.current, [id]: d }; setDataMap(m => ({ ...m, [id]: d })); const all = lsGet(LS_DATA, {}); all[id] = d; lsSet(LS_DATA, all); };
   const dropData = (id) => { const n = { ...dataRef.current }; delete n[id]; dataRef.current = n; setDataMap(n); const all = lsGet(LS_DATA, {}); delete all[id]; lsSet(LS_DATA, all); };
-  const setGen = (id, fn) => setGens(g => ({ ...g, [id]: fn(g[id] || { steps:{ research:'wait', plan:'wait', early:'wait', mid:'wait', end:'wait' }, info:{}, error:'' }) }));
+  const setGen = (id, fn) => setGens(g => ({ ...g, [id]: fn(g[id] || { steps:{ early:'wait', mid:'wait', end:'wait' }, info:{}, error:'' }) }));
   const step = (id, k, s, info) => setGen(id, g => ({ ...g, steps: { ...g.steps, [k]: s }, info: info !== undefined ? { ...g.info, [k]: info } : g.info }));
   const errCopy = (e) => { const m = t.err[e?.code]; if (e?.code === 'http') return m + (e.message || ''); return m || (t.err.http + (e?.message || '')); };
 
@@ -1456,62 +1542,54 @@ function App() {
     return team;
   };
 
-  const runPhase = async (g, key, signal, research) => {
-    const cur = dataRef.current[g.id]; const ph = cur?.phases?.[key]; if (!ph) return;
-    step(g.id, key, 'run');
-    try {
-      const ctx = research?.length ? `\n\nWEB RESEARCH (snippets from Bulbapedia/Serebii/PokémonDB — prefer these over memory when they disagree):\n${research.map(r => `- ${r.title}: ${r.content}`).join('\n').slice(0, 6000)}` : '';
-      const { json, sources, used } = await askJSON(cfg, phasePrompt(g, key, ph) + ctx, { signal, sampleFn: claudeSample, onAttempt: (l) => setGen(g.id, s => ({ ...s, attempt: l, attemptAt: Date.now() })), onSkip: (l) => setGen(g.id, s => ({ ...s, tried: [...(s.tried || []), l].slice(-6) })) });
-      const arr = Array.isArray(json) ? json : Array.isArray(json?.team) ? json.team : null;
-      if (!arr?.length) throw new LLMError('bad_shape', 'no team');
-      let team = arr.slice(0, 6).map(normMon);
-      step(g.id, key, 'verify');
-      team = await verifyTeam(g, team, key, signal, true);
-      const d = dataRef.current[g.id];
-      putData(g.id, { ...d, sources: mergeSources(d.sources, sources), phases: { ...d.phases, [key]: { ...d.phases[key], team } } });
-      const ok = team.reduce((s, m) => s + (m.verify?.moves || []).filter(x => x === 'ok').length, 0), all = team.reduce((s, m) => s + (m.moves || []).length, 0);
-      step(g.id, key, 'done', `✓ ${ok}/${all} · ${String(used || '').replace(/^\w+ · /, '')}`);
-    } catch (e) {
-      step(g.id, key, 'err'); if (e.code !== 'cancelled') setGen(g.id, s => ({ ...s, error: errCopy(e) }));
+  const PHASE_QUERY = { early: 'first three gyms', mid: 'gyms 4 to 7', end: '8th gym elite four champion' };
+  const aiOpts = (g, signal, extra = {}) => ({ signal, sampleFn: claudeSample, ...extra,
+    onAttempt: (l) => setGen(g.id, s => ({ ...s, attempt: l, attemptAt: Date.now() })),
+    onSkip: (l) => setGen(g.id, s => ({ ...s, tried: [...(s.tried || []), l].slice(-6) })) });
+
+  /* One phase: search the web for THIS phase → AI plans it from the previous verified team → fix forms → verify + repair */
+  const runPhase = async (g, key, signal) => {
+    const prev = key === 'mid' ? dataRef.current[g.id]?.phases?.early : key === 'end' ? dataRef.current[g.id]?.phases?.mid : null;
+    let research = [];
+    if (cfg.tavilyKey) {
+      step(g.id, key, 'search');
+      const qs = [`Pokémon ${g.name} ${PHASE_QUERY[key]} leaders teams levels`, `Pokémon ${g.name} best Pokémon to catch ${PHASE_QUERY[key]}${g.starter ? ' ' + g.starter : ''}`];
+      const res = await Promise.all(qs.map(q => tavilySearch(cfg.tavilyKey, q, signal).catch(e => { if (e.code === 'cancelled') throw e; return []; })));
+      research = res.flat();
     }
+    step(g.id, key, 'run', research.length ? `🔎 ${research.length}` : '');
+    const ctx = research.length ? `\n\nWEB RESEARCH for this phase (snippets from Bulbapedia/Serebii/PokémonDB — prefer these over memory when they disagree):\n${research.map(r => `- ${r.title} (${r.url}): ${r.content}`).join('\n').slice(0, 8000)}` : '';
+    const { json, sources, used, note } = await askJSON(cfg, phaseFullPrompt(g, key, prev) + ctx, aiOpts(g, signal));
+    const arr = Array.isArray(json?.team) ? json.team : null;
+    if (!arr?.length) throw new LLMError('bad_shape', 'no team');
+    const ph = normPlanPhase(json);
+    let team = arr.slice(0, 6).map(normMon);
+    step(g.id, key, 'verify');
+    await fixForms(team, levelCap(ph), g, signal);
+    team = await verifyTeam(g, team, key, signal, true);
+    ph.team = team; ph.roster = team.map(m => ({ name: m.name, dex: m.dex, types: m.types }));
+    if (key === 'early' && prev == null) ph.changes = [];
+    const d = dataRef.current[g.id];
+    putData(g.id, { ...d, notes: d.notes || ph.notes, searchNote: d.searchNote || note, provider: used || d.provider,
+      sources: mergeSources(d.sources, [...research.map(r => ({ title: r.title, url: r.url })), ...(sources || [])]), phases: { ...d.phases, [key]: ph } });
+    const ok = team.reduce((s, m) => s + (m.verify?.moves || []).filter(x => x === 'ok').length, 0), all = team.reduce((s, m) => s + (m.moves || []).length, 0);
+    const fixes = team.filter(m => m.formFix).length;
+    step(g.id, key, 'done', `✓ ${ok}/${all}${fixes ? ` · ⤵${fixes}` : ''} · ${String(used || '').replace(/^\w+ · /, '')}`);
   };
 
   const generate = async (g, { onlyMissing = false } = {}) => {
     if (!cfgReady(cfg)) { setCfgOpen(true); return; }
     (ctlRef.current[g.id] || []).forEach(c => c.abort());
     const ctl = new AbortController(); ctlRef.current[g.id] = [ctl]; const signal = ctl.signal;
-    setGens(s => ({ ...s, [g.id]: { provider: providerLabel(cfg), steps:{ research:'wait', plan:'wait', early:'wait', mid:'wait', end:'wait' }, info:{}, error:'' } }));
-    /* 1. research */
-    let research = [];
-    if (cfg.tavilyKey) {
-      step(g.id, 'research', 'run');
-      try {
-        const qs = [`Pokémon ${g.name} gym leaders teams levels walkthrough`, `Pokémon ${g.name} best in-game team ${g.starter ? 'with ' + g.starter : 'catchable early'}`];
-        const res = await Promise.all(qs.map(q => tavilySearch(cfg.tavilyKey, q, signal).catch(e => { if (e.code === 'cancelled') throw e; return []; })));
-        research = res.flat(); step(g.id, 'research', research.length ? 'done' : 'err', research.length ? `${research.length}` : '');
-        if (!research.length) setGen(g.id, s => ({ ...s, error: '' }));
-      } catch (e) { if (e.code === 'cancelled') { step(g.id, 'research', 'err'); return; } step(g.id, 'research', 'err'); }
-    } else step(g.id, 'research', 'skip');
-    /* 2. plan */
+    setGens(s => ({ ...s, [g.id]: { provider: providerLabel(cfg), steps:{ early:'wait', mid:'wait', end:'wait' }, info:{}, error:'' } }));
     let d = onlyMissing ? dataRef.current[g.id] : null;
-    if (!d?.phases?.early?.roster?.length) {
-      step(g.id, 'plan', 'run');
-      try {
-        const ctx = research.length ? `\n\nWEB RESEARCH (snippets — prefer these over memory when they disagree):\n${research.map(r => `- ${r.title} (${r.url}): ${r.content}`).join('\n').slice(0, 9000)}` : '';
-        const { json: plan, sources, note, used } = await askJSON(cfg, planPrompt(g) + ctx, { signal, sampleFn: claudeSample, onAttempt: (l) => setGen(g.id, s => ({ ...s, attempt: l, attemptAt: Date.now() })), onSkip: (l) => setGen(g.id, s => ({ ...s, tried: [...(s.tried || []), l].slice(-6) })) });
-        if (!plan?.phases || !PHASES.every(k => plan.phases[k]?.roster?.length)) throw new LLMError('bad_shape', 'plan');
-        d = { ai: true, planV: 2, provider: used || providerLabel(cfg), generatedAt: new Date().toISOString(), notes: asT(plan.notes), searchNote: note,
-          sources: mergeSources(research.map(r => ({ title: r.title, url: r.url })), sources), phases: {} };
-        PHASES.forEach(k => d.phases[k] = normPlanPhase(plan.phases[k]));
-        putData(g.id, d); step(g.id, 'plan', 'done', String(used || '').replace(/^\w+ · /, ''));
-      } catch (e) { step(g.id, 'plan', 'err'); if (e.code !== 'cancelled') setGen(g.id, s => ({ ...s, error: errCopy(e) })); return; }
-    } else step(g.id, 'plan', 'done');
-    /* 3. phases — sequential to respect free-tier rate limits, current tab first */
-    const todo = PHASES.filter(k => !(onlyMissing && d.phases[k]?.team?.length));
-    PHASES.filter(k => !todo.includes(k)).forEach(k => step(g.id, k, 'done'));
-    for (const k of [phase, ...todo.filter(x => x !== phase)].filter(x => todo.includes(x))) {
-      if (signal.aborted) break;
-      await runPhase(g, k, signal, research);
+    if (!d || d.planV !== 3) { d = { ai: true, planV: 3, starter: g.starter || null, provider: providerLabel(cfg), generatedAt: new Date().toISOString(), sources: [], phases: {} }; putData(g.id, d); }
+    /* strictly in story order: each phase is decided from the verified team of the one before */
+    for (const k of PHASES) {
+      if (signal.aborted) return;
+      if (dataRef.current[g.id]?.phases?.[k]?.team?.length) { step(g.id, k, 'done'); continue; }
+      try { await runPhase(g, k, signal); }
+      catch (e) { step(g.id, k, 'err'); if (e.code !== 'cancelled') setGen(g.id, s => ({ ...s, error: errCopy(e) })); return; }
     }
   };
 
@@ -1553,7 +1631,7 @@ function App() {
 
   const groups = useMemo(() => { const m = new Map(); allGames.forEach(g => { const k = g.custom ? 'custom' : g.gen; if (!m.has(k)) m.set(k, []); m.get(k).push(g); }); return [...m.entries()]; }, [allGames]);
   const ph = data?.phases?.[phase];
-  const running = gen && Object.values(gen.steps).some(s => s === 'run' || s === 'verify');
+  const running = gen && Object.values(gen.steps).some(s => s === 'run' || s === 'verify' || s === 'search');
   const showPanel = gen && !builtin && (running || Object.values(gen.steps).some(s => s === 'err'));
   const phaseLabel = (p) => (!builtin && data?.phases?.[p]?.label) ? one(data.phases[p].label, lang) : t.phaseSub[p];
 
@@ -1645,9 +1723,10 @@ function App() {
               <BattleStrip battles={ph.battles || []} lang={lang} t={t} />
             </div>
           </section>
-          {phase !== 'early' && data.ai && !data.planV ? (
+          {data.ai && (data.planV || 0) < 3 ? (
             <p className="mt-6 text-[13px] text-[#ffcf7a] border-l-4 border-[#9a6c1f] pl-3">{t.oldPlan}</p>
-          ) : phase !== 'early' ? (
+          ) : null}
+          {phase !== 'early' && !(data.ai && (data.planV || 0) < 3) ? (
             <section className="mt-6 glass rounded-2xl p-4 sm:p-5 border-2 border-white/15">
               <div className="flex items-center gap-2 text-[11px] uppercase tracking-[.14em] font-extrabold text-[var(--accent)] mb-2"><Icon d={IC.refresh} className="w-3.5 h-3.5" />{t.changesTitle} {t.phases[phase === 'mid' ? 'early' : 'mid']}</div>
               {(ph.changes || []).length ? (
@@ -1710,6 +1789,7 @@ function App() {
       {toast ? <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 brutal-sm rounded-xl px-4 py-2.5 bg-[var(--accent)] text-[#0b0b0f] font-bold fade-in">{toast}</div> : null}
       <footer className="mt-14 pt-6 border-t border-white/10 text-[12px] text-[var(--muted)] leading-relaxed">
         <p>{t.footer}</p><p className="mt-1">Pokémon © Nintendo / Game Freak / Creatures. Fan-made tool, not affiliated.</p>
+        <p className="mt-1 dex-num">{APP_VERSION}</p>
       </footer>
     </div>
   );

@@ -550,10 +550,17 @@ function parseJSONLoose(text) {
   throw new LLMError('invalid_json', 'Could not parse JSON');
 }
 
-async function httpJSON(url, opts) {
-  let r;
-  try { r = await fetch(url, opts); }
-  catch (e) { if (e.name === 'AbortError') throw new LLMError('cancelled', 'cancelled'); throw new LLMError('network', e.message || 'network'); }
+const AI_TIMEOUT_MS = 100000;   /* a model that hasn't answered in 100 s is treated as overloaded → next model */
+async function httpJSON(url, opts = {}, timeoutMs = 0) {
+  let r; const outer = opts.signal; const ctl = new AbortController(); let timedOut = false;
+  const onAbort = () => ctl.abort(); outer?.addEventListener('abort', onAbort, { once: true });
+  const timer = timeoutMs ? setTimeout(() => { timedOut = true; ctl.abort(); }, timeoutMs) : null;
+  try { r = await fetch(url, { ...opts, signal: ctl.signal }); }
+  catch (e) {
+    if (timedOut) throw new LLMError('timeout', `No answer after ${Math.round(timeoutMs / 1000)}s`);
+    if (e.name === 'AbortError') throw new LLMError('cancelled', 'cancelled');
+    throw new LLMError('network', e.message || 'network');
+  } finally { clearTimeout(timer); outer?.removeEventListener('abort', onAbort); }
   let j = null; try { j = await r.json(); } catch {}
   if (!r.ok) {
     const msg = String(j?.error?.message || j?.message || j?.detail || `HTTP ${r.status}`);
@@ -575,11 +582,24 @@ async function httpJSON(url, opts) {
   return j;
 }
 
+const NO_THINK_CFG = {};
 async function callGemini(cfg, prompt, { signal, search, model }) {
   const body = { contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 32768 } };
   if (search) body.tools = [{ google_search: {} }]; else body.generationConfig.responseMimeType = 'application/json';
+  /* less "thinking" = much faster answers; the PokéAPI layer checks the facts anyway */
+  if (!NO_THINK_CFG[model]) {
+    if (/gemini-([3-9]|\d\d)/.test(model)) body.generationConfig.thinkingConfig = { thinkingLevel: 'low' };
+    else if (/gemini-2\.5/.test(model)) body.generationConfig.thinkingConfig = { thinkingBudget: /lite/.test(model) ? 0 : 1024 };
+  }
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
-  const j = await httpJSON(url, { method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': cfg.geminiKey }, body: JSON.stringify(body), signal });
+  let j;
+  try { j = await httpJSON(url, { method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': cfg.geminiKey }, body: JSON.stringify(body), signal }, AI_TIMEOUT_MS); }
+  catch (e) {
+    if (e.code === 'http' && body.generationConfig.thinkingConfig && /thinking/i.test(e.message)) {
+      NO_THINK_CFG[model] = true; delete body.generationConfig.thinkingConfig;
+      j = await httpJSON(url, { method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': cfg.geminiKey }, body: JSON.stringify(body), signal }, AI_TIMEOUT_MS);
+    } else throw e;
+  }
   const cand = j?.candidates?.[0];
   const text = (cand?.content?.parts || []).map(p => p.text || '').join('');
   if (!text) throw new LLMError('empty', cand?.finishReason || 'empty response');
@@ -590,7 +610,7 @@ async function callGemini(cfg, prompt, { signal, search, model }) {
 async function callGroq(cfg, prompt, { signal, search, model }) {
   const body = { model, messages: [{ role: 'user', content: prompt }], temperature: 0.2, max_completion_tokens: 8192 };
   if (search) body.tools = [{ type: 'browser_search' }]; else body.response_format = { type: 'json_object' };
-  const j = await httpJSON('https://api.groq.com/openai/v1/chat/completions', { method: 'POST', headers: { 'content-type': 'application/json', Authorization: 'Bearer ' + cfg.groqKey }, body: JSON.stringify(body), signal });
+  const j = await httpJSON('https://api.groq.com/openai/v1/chat/completions', { method: 'POST', headers: { 'content-type': 'application/json', Authorization: 'Bearer ' + cfg.groqKey }, body: JSON.stringify(body), signal }, AI_TIMEOUT_MS);
   const msg = j?.choices?.[0]?.message;
   const text = msg?.content || '';
   if (!text) throw new LLMError('empty', 'empty response');
@@ -618,7 +638,7 @@ function attemptChain(cfg) {
 }
 
 /* One JSON call. Tries each model in turn on overload / quota errors, waits once on a short per-minute limit. */
-async function askJSON(cfg, prompt, { signal, useSearch = true, sampleFn, onAttempt } = {}) {
+async function askJSON(cfg, prompt, { signal, useSearch = true, sampleFn, onAttempt, onSkip } = {}) {
   if (cfg.provider === 'claude') {
     if (!sampleFn) throw new LLMError('no_provider', 'Claude not available');
     try { return { json: await sampleFn.json(prompt, { modelTier: 'complex', signal }), sources: [], note: '', used: 'Claude' }; }
@@ -646,8 +666,9 @@ async function askJSON(cfg, prompt, { signal, useSearch = true, sampleFn, onAtte
         if (e.code === 'rate_limited' && !waited && e.retryMs && e.retryMs <= 45000) {  /* short per-minute limit: wait once */
           waited = true; onAttempt?.(`${label} · ${Math.ceil(e.retryMs / 1000)}s…`); await sleep(e.retryMs + 500, signal); continue;
         }
+        onSkip?.(`${a.model} (${{ overloaded: 'quá tải / overloaded', timeout: 'timeout', quota_day: 'hết lượt ngày / daily quota', rate_limited: '429', not_found: '404' }[e.code] || e.code})`);
         if (e.code === 'quota_day') EXHAUSTED[a.provider + ':' + a.model] = Date.now();
-        if (e.code === 'overloaded') OVERLOADED[a.provider + ':' + a.model] = Date.now();
+        if (e.code === 'overloaded' || e.code === 'timeout') OVERLOADED[a.provider + ':' + a.model] = Date.now();
         break;                                                                            /* overloaded / quota / not found → next model */
       }
     }
@@ -867,6 +888,7 @@ const UI = {
     needCfg:'Cần cấu hình AI miễn phí', needCfgSub:'Dán API key miễn phí của Gemini hoặc Groq (mất khoảng 1 phút để lấy). Key chỉ lưu trên trình duyệt của bạn.',
     openCfg:'Cấu hình AI', idleTitle:'Chưa có dữ liệu cho phiên bản này', idleSub:'Bấm để AI tra cứu và lập đội hình 3 giai đoạn, rồi PokéAPI xác minh.', startGen:'Tra cứu & tạo đội hình',
     err:{ auth:'API key không hợp lệ hoặc không có quyền. Kiểm tra lại trong Cấu hình AI.', rate_limited:'Vượt giới hạn lượt/phút của gói free ở mọi model đã thử. Đợi 1 phút rồi bấm Thử lại.',
+      timeout:'Mọi model đã thử đều không trả lời trong 100 giây (máy chủ quá tải). Thêm key Groq làm dự phòng trong Cấu hình AI, hoặc thử lại sau.',
       overloaded:'Máy chủ Google đang quá tải ("high demand") ở mọi model đã thử. Đây là lỗi phía Google, không phải do key của bạn. Thêm key Groq làm dự phòng trong Cấu hình AI, hoặc thử lại sau.',
       quota_day:'Đã hết lượt miễn phí trong ngày của các model đã thử (hạn mức reset lúc 15:00 giờ Việt Nam). Thêm key Groq làm dự phòng, hoặc đợi sang ngày mới.', not_found:'Model không tồn tại hoặc key của bạn không dùng được model này. Bấm "Tải danh sách model" trong Cấu hình AI.',
       network:'Không kết nối được tới dịch vụ AI. Kiểm tra mạng hoặc tiện ích chặn quảng cáo. Nếu đang mở file trực tiếp trên máy, hãy dùng start.bat hoặc bản GitHub Pages.', invalid_json:'AI trả về dữ liệu sai định dạng. Bấm Thử lại.',
@@ -888,6 +910,7 @@ const UI = {
       fileWarn:'File cấu hình chứa API key: cất ở máy của bạn, đừng tải lên GitHub hay gửi cho người khác.',
       privacy:'Key chỉ lưu trong trình duyệt này. Lưu ý: dữ liệu gửi tới gói free của Gemini có thể được Google dùng để cải thiện sản phẩm.', models:'model khả dụng' },
     storageOff:'Trình duyệt đang chặn lưu dữ liệu cho trang này (thường do tab ẩn danh hoặc cài đặt xóa dữ liệu trang khi đóng). Cấu hình AI và đội hình sẽ mất khi đóng tab. Hãy mở bằng tab thường, cho phép trang này lưu dữ liệu, hoặc dùng "Nạp file cấu hình" trong Cấu hình AI.',
+    triedModels:'Đã bỏ qua:',
     starterTitle:'Chọn Pokémon khởi đầu', starterSub:'Đội hình sẽ được build xoay quanh starter bạn chọn: bù điểm yếu hệ và tránh trùng vai trò.', starterAuto:'Để AI chọn', starterAutoSub:'Starter mạnh nhất', starterCached:'Đã có đội hình',
     pickFirst:'Chọn một starter ở trên để build đội hình', pickFirstSub:'Mỗi starter có một đội hình riêng và được lưu lại, đổi qua lại không tốn thêm lượt AI.', starterChip:'Starter',
     starterField:'Starter (tùy chọn, cách nhau bằng dấu phẩy)',
@@ -911,6 +934,7 @@ const UI = {
     needCfg:'Set up a free AI first', needCfgSub:'Paste a free Gemini or Groq API key (takes about a minute to get). The key stays in your browser.',
     openCfg:'AI settings', idleTitle:'No data for this version yet', idleSub:'Press to have the AI research and plan all three phases, then verify with PokéAPI.', startGen:'Research & build teams',
     err:{ auth:'The API key is invalid or not allowed. Check it in AI settings.', rate_limited:'Hit the free per-minute limit on every model tried. Wait a minute, then press Retry.',
+      timeout:'Every model tried failed to answer within 100 seconds (servers overloaded). Add a Groq key as backup in AI settings, or try later.',
       overloaded:'Google\'s servers are overloaded ("high demand") on every model tried. This is on Google\'s side, not your key. Add a Groq key as backup in AI settings, or try later.',
       quota_day:'The daily free quota is used up on every model tried (resets at midnight Pacific time). Add a Groq key as backup, or wait for the reset.', not_found:'Model not found, or your key can\'t use it. Press "Load model list" in AI settings.',
       network:'Couldn\'t reach the AI service. Check your connection or ad blocker. If you opened the file directly from disk, use start.bat or the GitHub Pages version.', invalid_json:'The AI returned malformed data. Press Retry.',
@@ -932,6 +956,7 @@ const UI = {
       fileWarn:'The settings file contains your API keys: keep it on your computer, never upload it to GitHub or share it.',
       privacy:'Keys are stored only in this browser. Note: data sent to Gemini\'s free tier may be used by Google to improve its products.', models:'models available' },
     storageOff:'This browser is blocking storage for this page (usually a private window or a "clear site data on close" setting). AI settings and teams will be lost when the tab closes. Use a normal window, allow this site to store data, or use "Load settings file" in AI settings.',
+    triedModels:'Skipped:',
     starterTitle:'Choose your starter', starterSub:'The team is built around the starter you pick: covering its type weaknesses and avoiding overlapping roles.', starterAuto:'Let AI pick', starterAutoSub:'Strongest starter', starterCached:'Team ready',
     pickFirst:'Pick a starter above to build the team', pickFirstSub:'Each starter gets its own saved team, so switching between them costs no extra AI calls.', starterChip:'Starter',
     starterField:'Starters (optional, comma-separated)',
@@ -1159,6 +1184,8 @@ function PokemonCard({ mon, lang, t }) {
 
 /* ---------- Generation progress panel ---------- */
 function GenPanel({ gen, t, onStop, onRetry }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const id = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(id); }, []);
   const steps = [['research', t.gen_research], ['plan', t.gen_plan], ['early', `${t.gen_phase} · ${t.phases.early}`], ['mid', `${t.gen_phase} · ${t.phases.mid}`], ['end', `${t.gen_phase} · ${t.phases.end}`]];
   const running = Object.values(gen.steps).some(s => s === 'run' || s === 'verify');
   const failed = Object.values(gen.steps).some(s => s === 'err');
@@ -1184,7 +1211,8 @@ function GenPanel({ gen, t, onStop, onRetry }) {
             <span className="chip" style={{ background: bg, color: fg }}>{l}</span>
           </li>); })}
       </ol>
-      {running && gen.attempt ? <p className="mt-3 text-[12.5px] text-[#ffcf7a] dex-num break-words">→ {gen.attempt}</p> : null}
+      {running && gen.attempt ? <p className="mt-3 text-[12.5px] text-[#ffcf7a] dex-num break-words tabular-nums">→ {gen.attempt} · {Math.max(0, Math.round((now - (gen.attemptAt || now)) / 1000))}s / {Math.round(AI_TIMEOUT_MS / 1000)}s</p> : null}
+      {running && gen.tried?.length ? <p className="mt-1 text-[12px] text-[var(--muted)] break-words">{t.triedModels} {gen.tried.join(' · ')}</p> : null}
       {gen.error ? <p className="mt-3 text-[13.5px] font-semibold text-red-300 break-words">{gen.error}</p> : <p className="mt-3 text-[12.5px] text-[var(--muted)]">{t.gen_note}</p>}
     </section>
   );
@@ -1406,7 +1434,7 @@ function App() {
     if (allowRepair && bads.length && cfgReady(cfg)) {
       const items = bads.map(b => ({ name: b.mon.name, role: one(b.mon.role?.label, 'en'), keep: b.mon.moves.filter((_, i) => !b.idx.includes(i)).map(m => m.name.en), badMoves: b.idx.map(i => b.mon.moves[i].name.en), digest: learnsetDigest(b.p) }));
       try {
-        const { json } = await askJSON(cfg, repairPrompt(g, key, items), { signal, useSearch: false, sampleFn: claudeSample, onAttempt: (l) => setGen(g.id, s => ({ ...s, attempt: l })) });
+        const { json } = await askJSON(cfg, repairPrompt(g, key, items), { signal, useSearch: false, sampleFn: claudeSample, onAttempt: (l) => setGen(g.id, s => ({ ...s, attempt: l, attemptAt: Date.now() })), onSkip: (l) => setGen(g.id, s => ({ ...s, tried: [...(s.tried || []), l].slice(-6) })) });
         for (const fx of json?.fixes || []) {
           const b = bads.find(x => normKey(x.mon.name) === normKey(fx.name)); if (!b) continue;
           const i = b.mon.moves.findIndex(m => normKey(m.name.en) === normKey(fx.replace)); if (i < 0 || !fx.with) continue;
@@ -1423,7 +1451,7 @@ function App() {
     step(g.id, key, 'run');
     try {
       const ctx = research?.length ? `\n\nWEB RESEARCH (snippets from Bulbapedia/Serebii/PokémonDB — prefer these over memory when they disagree):\n${research.map(r => `- ${r.title}: ${r.content}`).join('\n').slice(0, 6000)}` : '';
-      const { json, sources, used } = await askJSON(cfg, phasePrompt(g, key, ph) + ctx, { signal, sampleFn: claudeSample, onAttempt: (l) => setGen(g.id, s => ({ ...s, attempt: l })) });
+      const { json, sources, used } = await askJSON(cfg, phasePrompt(g, key, ph) + ctx, { signal, sampleFn: claudeSample, onAttempt: (l) => setGen(g.id, s => ({ ...s, attempt: l, attemptAt: Date.now() })), onSkip: (l) => setGen(g.id, s => ({ ...s, tried: [...(s.tried || []), l].slice(-6) })) });
       const arr = Array.isArray(json) ? json : Array.isArray(json?.team) ? json.team : null;
       if (!arr?.length) throw new LLMError('bad_shape', 'no team');
       let team = arr.slice(0, 6).map(normMon);
@@ -1460,7 +1488,7 @@ function App() {
       step(g.id, 'plan', 'run');
       try {
         const ctx = research.length ? `\n\nWEB RESEARCH (snippets — prefer these over memory when they disagree):\n${research.map(r => `- ${r.title} (${r.url}): ${r.content}`).join('\n').slice(0, 9000)}` : '';
-        const { json: plan, sources, note, used } = await askJSON(cfg, planPrompt(g) + ctx, { signal, sampleFn: claudeSample, onAttempt: (l) => setGen(g.id, s => ({ ...s, attempt: l })) });
+        const { json: plan, sources, note, used } = await askJSON(cfg, planPrompt(g) + ctx, { signal, sampleFn: claudeSample, onAttempt: (l) => setGen(g.id, s => ({ ...s, attempt: l, attemptAt: Date.now() })), onSkip: (l) => setGen(g.id, s => ({ ...s, tried: [...(s.tried || []), l].slice(-6) })) });
         if (!plan?.phases || !PHASES.every(k => plan.phases[k]?.roster?.length)) throw new LLMError('bad_shape', 'plan');
         d = { ai: true, provider: used || providerLabel(cfg), generatedAt: new Date().toISOString(), notes: asT(plan.notes), searchNote: note,
           sources: mergeSources(research.map(r => ({ title: r.title, url: r.url })), sources), phases: {} };

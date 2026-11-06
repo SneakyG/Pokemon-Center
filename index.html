@@ -133,9 +133,29 @@ const BASE_GAMES = [
   { id:'plza', gen:9, region:'Kalos (Lumiose)', year:2025, name:'Legends: Z-A' }
 ];
 
+/* ---------- Official starters per game ---------- */
+const S = (name, dex, ...types) => ({ name, dex, types });
+const KANTO = [S('Bulbasaur',1,'grass','poison'), S('Charmander',4,'fire'), S('Squirtle',7,'water')];
+const JOHTO = [S('Chikorita',152,'grass'), S('Cyndaquil',155,'fire'), S('Totodile',158,'water')];
+const HOENN = [S('Treecko',252,'grass'), S('Torchic',255,'fire'), S('Mudkip',258,'water')];
+const SINNOH = [S('Turtwig',387,'grass'), S('Chimchar',390,'fire'), S('Piplup',393,'water')];
+const UNOVA = [S('Snivy',495,'grass'), S('Tepig',498,'fire'), S('Oshawott',501,'water')];
+const ALOLA = [S('Rowlet',722,'grass','flying'), S('Litten',725,'fire'), S('Popplio',728,'water')];
+const STARTERS = {
+  rby: KANTO, yellow: [S('Pikachu',25,'electric')], gs: JOHTO, crystal: JOHTO, rs: HOENN, frlg: KANTO, emerald: HOENN,
+  dp: SINNOH, platinum: SINNOH, hgss: JOHTO, bw: UNOVA, b2w2: UNOVA,
+  xy: [S('Chespin',650,'grass'), S('Fennekin',653,'fire'), S('Froakie',656,'water')], oras: HOENN, sm: ALOLA, usum: ALOLA,
+  lgpe: [S('Pikachu',25,'electric'), S('Eevee',133,'normal')],
+  swsh: [S('Grookey',810,'grass'), S('Scorbunny',813,'fire'), S('Sobble',816,'water')], bdsp: SINNOH,
+  pla: [S('Rowlet',722,'grass','flying'), S('Cyndaquil',155,'fire'), S('Oshawott',501,'water')],
+  sv: [S('Sprigatito',906,'grass'), S('Fuecoco',909,'fire'), S('Quaxly',912,'water')],
+  plza: [S('Chikorita',152,'grass'), S('Tepig',498,'fire'), S('Totodile',158,'water')]
+};
+
 /* ---------- Built-in walkthrough data: Pokémon Platinum ---------- */
 const BUILTIN_DATA = {
   platinum: {
+    starter: 'Chimchar',
     phases: {
       early: {
         levelRange: 'Lv. 5 – 26',
@@ -409,10 +429,15 @@ const PHASE_DEF = `Phases:
 - "mid": 4th to 7th Gym (or the middle third of major battles).
 - "end": 8th Gym, Elite Four and Champion (or the final third: final major battles and the last story boss).`;
 
+const STARTER_RULE = (game) => game.starter ? `
+STARTER: the player chose ${game.starter}. Its evolution line MUST be in the team in every phase (listed first in each roster, in the form it has during that phase). Build the other 5 around it: cover the starter's type weaknesses, add coverage for the battles it struggles with, avoid stacking its weaknesses, and avoid overlapping roles. Do NOT include the other starters unless the game gives them away during the normal story; if it does, say where in the location note.` : `
+STARTER: pick whichever official starter of this game makes the strongest walkthrough team, list its line first in each roster, and say why in "notes".`;
+
 function planPrompt(game) {
   return `${COMMON_RULES(game)}
 
 ${PHASE_DEF}
+${STARTER_RULE(game)}
 
 TASK: Plan the optimal 6-Pokémon walkthrough team for each phase. The team should evolve naturally between phases (mostly the same line, evolved), with clear type coverage against the major battles of that phase.
 Reply with ONLY one JSON object, no prose, in exactly this shape:
@@ -438,7 +463,8 @@ function phasePrompt(game, phaseKey, ph) {
 
 ${PHASE_DEF}
 
-You already planned this team for the "${phaseKey}" phase (${ph.label?.en || ''}, ${ph.levelRange || ''}):
+${game.starter ? `The player's starter is ${game.starter}; keep its line exactly as planned.
+` : ''}You already planned this team for the "${phaseKey}" phase (${ph.label?.en || ''}, ${ph.levelRange || ''}):
 ${JSON.stringify(ph.roster)}
 Major battles of this phase: ${JSON.stringify((ph.battles || []).map(b => `${b.leader} (${b.type}, ace ${b.ace})`))}
 
@@ -764,7 +790,8 @@ const prettyArea = (a) => prettyName(String(a).replace(/-area$/, '').replace(/^(
 /* Verify one Pokémon in place. Returns { bad: [moveIndex...] } */
 async function verifyMon(mon, game, signal) {
   const gen = Number(game.gen) || 9;
-  const p = await paPokemon(mon.name, game.id, signal);
+  const gid = game.paId || game.id;
+  const p = await paPokemon(mon.name, gid, signal);
   if (!p) { mon.verify = { status: 'unknown' }; return { bad: [] }; }
   mon.dex = p.dex || mon.dex;
   mon.types = typesForGen(p, gen);
@@ -781,7 +808,7 @@ async function verifyMon(mon, game, signal) {
     if (prefer === 'tm' || prefer === 'hm') { if ('machine' in by) k = 'machine'; }
     if (!k) k = ['level-up', 'machine', 'tutor', 'egg'].find(x => x in by) || hit.d[0][0];
     if (k === 'level-up') { const lv = Math.min(...hit.d.filter(d => d[0] === 'level-up').map(d => d[1])); mv.method = { k: lv <= 1 ? 'level' : 'level', v: lv <= 1 ? 'Lv. 1' : 'Lv. ' + lv }; }
-    else if (k === 'machine') { val = await paMachine(hit.n, game.id, signal); mv.method = { k: /^HM/.test(val) ? 'hm' : 'tm', v: val || 'TM' }; }
+    else if (k === 'machine') { val = await paMachine(hit.n, gid, signal); mv.method = { k: /^HM/.test(val) ? 'hm' : 'tm', v: val || 'TM' }; }
     else if (k === 'tutor') mv.method = { k: 'tutor', v: 'Tutor' };
     else if (k === 'egg') mv.method = { k: 'egg', v: 'Egg' };
     else mv.method = { k: 'other', v: prettyName(k) };
@@ -794,7 +821,7 @@ async function verifyMon(mon, game, signal) {
     v.ability = { ok, valid: valid.map(a => prettyName(a.n) + (a.h ? ' (HA)' : '')) };
   }
   try {
-    const enc = await paEncounters(p, game.id, signal);
+    const enc = await paEncounters(p, gid, signal);
     v.loc = enc.length ? enc.map(e => ({ who: prettyName(e.who), area: prettyArea(e.area), lv: e.min === e.max ? `Lv. ${e.min}` : `Lv. ${e.min}–${e.max}`, method: ENC_METHOD[e.method] || T(prettyName(e.method), prettyName(e.method)) })) : [];
   } catch (e) { if (e.code === 'cancelled') throw e; v.loc = null; }
   mon.verify = v;
@@ -853,6 +880,9 @@ const UI = {
       models_order:'Thứ tự model (tự chuyển khi model quá tải / hết lượt)', models_hint:'Cách nhau bằng dấu phẩy. Bấm "Tải danh sách model" để lấy đúng tên model key của bạn dùng được.',
       backup:'Dùng nhà cung cấp còn lại làm dự phòng', backupNote:'Khi mọi model Gemini đều quá tải hoặc hết lượt, tự chuyển sang Groq (và ngược lại).',
       privacy:'Key chỉ lưu trong trình duyệt này. Lưu ý: dữ liệu gửi tới gói free của Gemini có thể được Google dùng để cải thiện sản phẩm.', models:'model khả dụng' },
+    starterTitle:'Chọn Pokémon khởi đầu', starterSub:'Đội hình sẽ được build xoay quanh starter bạn chọn: bù điểm yếu hệ và tránh trùng vai trò.', starterAuto:'Để AI chọn', starterAutoSub:'Starter mạnh nhất', starterCached:'Đã có đội hình',
+    pickFirst:'Chọn một starter ở trên để build đội hình', pickFirstSub:'Mỗi starter có một đội hình riêng và được lưu lại, đổi qua lại không tốn thêm lượt AI.', starterChip:'Starter',
+    starterField:'Starter (tùy chọn, cách nhau bằng dấu phẩy)',
     footer:'Tên chiêu/tính trạng tiếng Việt là bản dịch mô tả (không có bản địa hóa chính thức). Dữ liệu xác minh: PokéAPI (pokeapi.co).'
   },
   en: {
@@ -890,6 +920,9 @@ const UI = {
       models_order:'Model order (switches automatically on overload / quota)', models_hint:'Comma-separated. Press "Load model list" to get the exact names your key can use.',
       backup:'Use the other provider as backup', backupNote:'When every Gemini model is overloaded or out of quota, switch to Groq automatically (and vice versa).',
       privacy:'Keys are stored only in this browser. Note: data sent to Gemini\'s free tier may be used by Google to improve its products.', models:'models available' },
+    starterTitle:'Choose your starter', starterSub:'The team is built around the starter you pick: covering its type weaknesses and avoiding overlapping roles.', starterAuto:'Let AI pick', starterAutoSub:'Strongest starter', starterCached:'Team ready',
+    pickFirst:'Pick a starter above to build the team', pickFirstSub:'Each starter gets its own saved team, so switching between them costs no extra AI calls.', starterChip:'Starter',
+    starterField:'Starters (optional, comma-separated)',
     footer:'Vietnamese move/ability names are descriptive translations (no official Vietnamese localization exists). Verification data: PokéAPI (pokeapi.co).'
   }
 };
@@ -981,14 +1014,15 @@ function Coverage({ team, lang, t }) {
 
 /* ---------- Add-game modal ---------- */
 function AddGameModal({ open, onClose, onSave, t }) {
-  const blank = { name:'', gen:'10', region:'', year: String(new Date().getFullYear()) };
+  const blank = { name:'', gen:'10', region:'', year: String(new Date().getFullYear()), starters:'' };
   const [f, setF] = useState(blank); const [err, setErr] = useState('');
   useEffect(() => { if (open) { setErr(''); setF(blank); } }, [open]);
   if (!open) return null;
   const submit = (e) => {
     e.preventDefault();
     if (!f.name.trim()) return setErr(t.modal.reqName);
-    onSave({ id: 'custom-' + Date.now().toString(36), gen: Number(f.gen) || f.gen, region: f.region.trim() || '—', year: Number(f.year) || '', name: f.name.trim().replace(/^Pok[eé]mon\s+/i, ''), custom: true });
+    onSave({ id: 'custom-' + Date.now().toString(36), gen: Number(f.gen) || f.gen, region: f.region.trim() || '—', year: Number(f.year) || '', name: f.name.trim().replace(/^Pok[eé]mon\s+/i, ''), custom: true,
+      starters: f.starters.split(',').map(s => s.trim()).filter(Boolean).slice(0, 4).map(n => ({ name: n, dex: 0, types: [] })) });
   };
   const field = 'w-full rounded-xl px-3 py-2.5 border-2 border-white/70 focus:outline-none focus:border-[var(--accent)]';
   return (
@@ -1007,6 +1041,7 @@ function AddGameModal({ open, onClose, onSave, t }) {
             <label className="grid gap-1 text-[13px] font-semibold">{t.modal.region}<input id="ng-region" className={field} placeholder="—" value={f.region} onChange={e => setF({ ...f, region: e.target.value })} /></label>
             <label className="grid gap-1 text-[13px] font-semibold">{t.modal.year}<input id="ng-year" className={field} value={f.year} onChange={e => setF({ ...f, year: e.target.value })} /></label>
           </div>
+          <label className="grid gap-1 text-[13px] font-semibold">{t.starterField}<input id="ng-starters" className={field} placeholder="Sprigatito, Fuecoco, Quaxly" value={f.starters} onChange={e => setF({ ...f, starters: e.target.value })} /></label>
           <p className="text-[12.5px] text-[var(--muted)]">{t.modal.hint}</p>
           {err ? <div className="text-[13px] font-semibold text-red-300">{err}</div> : null}
           <div className="flex gap-3 justify-end mt-1">
@@ -1143,6 +1178,43 @@ function GenPanel({ gen, t, onStop, onRetry }) {
   );
 }
 
+/* ---------- Starter picker ---------- */
+function StarterPicker({ list, value, onPick, cached, t, lang }) {
+  const opts = [...list, { name: 'auto', dex: 0, types: [] }];
+  return (
+    <section className="mt-6" aria-label={t.starterTitle}>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-3">
+        <h2 className="text-lg font-black">{t.starterTitle}</h2>
+        <p className="text-[13px] text-[var(--muted)]">{t.starterSub}</p>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" role="radiogroup">
+        {opts.map(s => {
+          const isAuto = s.name === 'auto'; const on = normKey(value) === normKey(s.name);
+          const col = isAuto ? '#ffcb05' : tc(s.types[0]);
+          return (
+            <button key={s.name} role="radio" aria-checked={on} onClick={() => onPick(s.name)}
+              className={`brutal-btn rounded-2xl p-3 text-left border-2 flex items-center gap-3 min-w-0 transition-colors ${on ? '' : 'bg-[#0e1018]'}`}
+              style={{ borderColor: on ? col : 'rgba(255,255,255,.25)', boxShadow: on ? `4px 4px 0 ${col}` : '3px 3px 0 rgba(255,255,255,.25)', background: on ? `${col}22` : undefined }}>
+              <div className="w-14 h-14 shrink-0 rounded-xl grid place-items-center" style={{ background: `radial-gradient(circle at 50% 60%, ${col}40, transparent 70%)` }}>
+                {isAuto ? <span style={{ color: col }}><Icon d={IC.wand} className="w-7 h-7" /></span>
+                  : s.dex ? <img src={spriteUrl(s.dex)} alt="" className="w-14 h-14 object-contain" onError={e => e.currentTarget.style.display = 'none'} />
+                  : <span className="text-2xl font-black" style={{ color: col }}>{s.name[0]}</span>}
+              </div>
+              <div className="min-w-0">
+                <div className="font-black truncate">{isAuto ? t.starterAuto : s.name}</div>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {isAuto ? <span className="text-[11.5px] text-[var(--muted)]">{t.starterAutoSub}</span> : s.types.map(ty => <TypeBadge key={ty} type={ty} lang={lang} small />)}
+                </div>
+                {cached(s.name) ? <div className="text-[11px] font-bold text-[#7ff0a3] mt-1">✓ {t.starterCached}</div> : null}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 /* ---------- AI settings modal ---------- */
 function SettingsModal({ open, onClose, cfg, onSave, t, claudeAvailable }) {
   const [f, setF] = useState(cfg); const [models, setModels] = useState([]); const [msg, setMsg] = useState('');
@@ -1243,6 +1315,7 @@ function App() {
   const [lang, setLang] = useState(prefs.lang || 'vi');
   const [gameId, setGameId] = useState(prefs.gameId || 'platinum');
   const [phase, setPhase] = useState(prefs.phase || 'early');
+  const [starters, setStarters] = useState(prefs.starters || { platinum: 'Chimchar' });
   const [cfg, setCfg] = useState(loadCfg);
   const [customGames, setCustomGames] = useState(() => lsGet(LS_GAMES, []));
   const [dataMap, setDataMap] = useState(() => lsGet(LS_DATA, {}));
@@ -1260,16 +1333,26 @@ function App() {
   const t = UI[lang];
 
   useEffect(() => { const c = window.claude; if (c && typeof c.use === 'function') c.use('sample').then(s => s && setClaudeSample(() => s)).catch(() => {}); }, []);
-  useEffect(() => { lsSet(LS_PREFS, { lang, gameId, phase }); document.documentElement.lang = lang; }, [lang, gameId, phase]);
+  useEffect(() => { lsSet(LS_PREFS, { lang, gameId, phase, starters }); document.documentElement.lang = lang; }, [lang, gameId, phase, starters]);
   useEffect(() => { lsSet(LS_GAMES, customGames); }, [customGames]);
   useEffect(() => { if (!toast) return; const id = setTimeout(() => setToast(''), 3000); return () => clearTimeout(id); }, [toast]);
   useEffect(() => { setArmRemove(false); }, [gameId]);
 
   const allGames = useMemo(() => [...BASE_GAMES, ...customGames.filter(g => !BASE_GAMES.some(b => b.id === g.id))], [customGames]);
   const game = allGames.find(g => g.id === gameId) || BASE_GAMES.find(g => g.id === 'platinum');
-  const builtin = BUILTIN_DATA[game.id];
-  const data = dataMap[game.id] || builtin || null;
-  const gen = gens[game.id];
+  const starterList = (game.starters?.length ? game.starters : STARTERS[game.id]) || [];
+  const starter = starters[game.id] || (starterList.length === 1 ? starterList[0].name : '');
+  const chosen = starter && starter !== 'auto' ? starter : '';
+  const keyFor = (gid, s) => s && s !== 'auto' ? `${gid}::${normKey(s)}` : gid;
+  const dk = keyFor(game.id, starter);
+  const job = useMemo(() => ({ ...game, id: dk, paId: game.id, starter: chosen }), [game, dk, chosen]);
+  const builtinFor = (s) => { const b = BUILTIN_DATA[game.id]; return b && normKey(b.starter) === normKey(s) ? b : null; };
+  const builtin = builtinFor(starter);
+  const needsPick = starterList.length > 1 && !starter;
+  const data = needsPick ? null : (dataMap[dk] || builtin || null);
+  const gen = gens[dk];
+  const pickStarter = (s) => setStarters(m => ({ ...m, [game.id]: s }));
+  const cachedStarter = (s) => !!(dataMap[keyFor(game.id, s)] || builtinFor(s));
 
   const putData = (id, d) => { dataRef.current = { ...dataRef.current, [id]: d }; setDataMap(m => ({ ...m, [id]: d })); const all = lsGet(LS_DATA, {}); all[id] = d; lsSet(LS_DATA, all); };
   const dropData = (id) => { const n = { ...dataRef.current }; delete n[id]; dataRef.current = n; setDataMap(n); const all = lsGet(LS_DATA, {}); delete all[id]; lsSet(LS_DATA, all); };
@@ -1329,7 +1412,7 @@ function App() {
     if (cfg.tavilyKey) {
       step(g.id, 'research', 'run');
       try {
-        const qs = [`Pokémon ${g.name} gym leaders teams levels walkthrough`, `Pokémon ${g.name} best in-game team catchable early`];
+        const qs = [`Pokémon ${g.name} gym leaders teams levels walkthrough`, `Pokémon ${g.name} best in-game team ${g.starter ? 'with ' + g.starter : 'catchable early'}`];
         const res = await Promise.all(qs.map(q => tavilySearch(cfg.tavilyKey, q, signal).catch(e => { if (e.code === 'cancelled') throw e; return []; })));
         research = res.flat(); step(g.id, 'research', research.length ? 'done' : 'err', research.length ? `${research.length}` : '');
         if (!research.length) setGen(g.id, s => ({ ...s, error: '' }));
@@ -1362,35 +1445,35 @@ function App() {
   const verifyAll = async () => {
     const base = data; if (!base) return;
     setVerifying(true);
-    const ctl = new AbortController(); ctlRef.current[game.id] = [ctl];
+    const ctl = new AbortController(); ctlRef.current[dk] = [ctl];
     try {
       const d = clone(base);
-      for (const k of PHASES) if (d.phases[k]?.team?.length) d.phases[k].team = await verifyTeam(game, d.phases[k].team, k, ctl.signal, !!d.ai);
-      putData(game.id, d);
+      for (const k of PHASES) if (d.phases[k]?.team?.length) d.phases[k].team = await verifyTeam(job, d.phases[k].team, k, ctl.signal, !!d.ai);
+      putData(dk, d);
     } catch (e) { if (e.code !== 'cancelled') setToast(t.paOffline); }
     setVerifying(false);
   };
 
   useEffect(() => {
-    if (builtin || !cfgReady(cfg)) return;
-    const d = dataRef.current[game.id];
+    if (builtin || needsPick || !cfgReady(cfg)) return;
+    const d = dataRef.current[dk];
     const incomplete = d?.phases && PHASES.some(k => !d.phases[k]?.team?.length);
-    if ((!d || incomplete) && !gens[game.id] && !autoStarted.current[game.id]) { autoStarted.current[game.id] = true; generate(game, { onlyMissing: !!incomplete }); }
-  }, [game.id, cfg]);
+    if ((!d || incomplete) && !gens[dk] && !autoStarted.current[dk]) { autoStarted.current[dk] = true; generate(job, { onlyMissing: !!incomplete }); }
+  }, [dk, cfg]);
 
-  const stop = () => (ctlRef.current[game.id] || []).forEach(c => c.abort());
-  const retry = () => generate(game, { onlyMissing: true });
-  const regenerate = () => { dropData(game.id); generate(game); };
+  const stop = () => (ctlRef.current[dk] || []).forEach(c => c.abort());
+  const retry = () => generate(job, { onlyMissing: true });
+  const regenerate = () => { dropData(dk); generate(job); };
   const saveCfg = (c) => { delete SEARCH_REFUSED.gemini; delete SEARCH_REFUSED.groq; setCfg(c); lsSet(LS_CFG, c); setCfgOpen(false); autoStarted.current = {}; };
   const saveGame = (g) => { setCustomGames(cg => [...cg, g]); setModal(false); setGameId(g.id); setPhase('early'); };
-  const removeGame = () => { if (!armRemove) { setArmRemove(true); return; } stop(); dropData(game.id); setCustomGames(cg => cg.filter(g => g.id !== game.id)); setGameId('platinum'); };
-  const exportJson = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify({ game, ...data }, null, 2)], { type: 'application/json' })); a.download = `${game.id}-walkthrough.json`; a.click(); };
+  const removeGame = () => { if (!armRemove) { setArmRemove(true); return; } stop(); Object.keys(dataRef.current).filter(k => k === game.id || k.startsWith(game.id + '::')).forEach(dropData); setCustomGames(cg => cg.filter(g => g.id !== game.id)); setGameId('platinum'); };
+  const exportJson = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify({ game, starter: chosen || null, ...data }, null, 2)], { type: 'application/json' })); a.download = `${game.id}${chosen ? '-' + normKey(chosen) : ''}-walkthrough.json`; a.click(); };
   const onImport = (e) => {
     const file = e.target.files?.[0]; if (!file) return; const r = new FileReader();
     r.onload = () => { try { const d = JSON.parse(r.result); if (!d.phases) throw 0;
       const nd = { ai: !!d.ai, provider: d.provider, generatedAt: d.generatedAt || new Date().toISOString(), notes: asT(d.notes), sources: d.sources || [], phases: {} };
       PHASES.forEach(k => { const p = normPlanPhase(d.phases[k]); p.team = (d.phases[k]?.team || []).map(m => ({ ...normMon(m), verify: m.verify })); if (!p.roster.length) p.roster = p.team.map(m => ({ name:m.name, dex:m.dex, types:m.types })); nd.phases[k] = p; });
-      putData(game.id, nd); setToast(t.imported); } catch { setToast(t.badJson); } };
+      putData(dk, nd); setToast(t.imported); } catch { setToast(t.badJson); } };
     r.readAsText(file); e.target.value = '';
   };
 
@@ -1433,7 +1516,7 @@ function App() {
           <select id="game-select" value={game.id} onChange={e => setGameId(e.target.value)} className="w-full rounded-xl px-3.5 py-3 border-2 border-white/80 font-bold text-[15px] focus:outline-none focus:border-[var(--accent)]">
             {groups.map(([g, list]) => (
               <optgroup key={g} label={g === 'custom' ? `★ ${t.custom}` : `Generation ${g}`}>
-                {list.map(x => <option key={x.id} value={x.id}>{`Pokémon ${x.name} (${x.year || '?'})${BUILTIN_DATA[x.id] ? '  ✓' : dataMap[x.id] ? '  ✦' : ''}`}</option>)}
+                {list.map(x => <option key={x.id} value={x.id}>{`Pokémon ${x.name} (${x.year || '?'})${BUILTIN_DATA[x.id] ? '  ✓' : Object.keys(dataMap).some(k => k === x.id || k.startsWith(x.id + '::')) ? '  ✦' : ''}`}</option>)}
               </optgroup>
             ))}
           </select>
@@ -1446,14 +1529,17 @@ function App() {
         <div className="lg:col-span-2 flex flex-wrap gap-2 items-center">
           <span className="chip bg-white/10">{t.gen} {game.gen}</span><span className="chip bg-white/10">{game.region}</span><span className="chip bg-white/10">{game.year}</span>
           {game.custom ? <span className="chip" style={{ background:'#3d2b0e', color:'#ffcf7a' }}>★ {t.custom}</span> : null}
-          {builtin && !dataMap[game.id] ? <span className="chip" style={{ background:'#163a24', color:'#7ff0a3' }}>✓ {t.builtIn}</span> : data?.ai ? <span className="chip" style={{ background:'#2c1a4a', color:'#c6a6ff' }}>✦ {t.aiBadge}{data.provider ? ` · ${data.provider}` : ''}</span> : null}
+          {chosen ? <span className="chip bg-white/10">{t.starterChip}: {chosen}</span> : null}
+          {builtin && !dataMap[dk] ? <span className="chip" style={{ background:'#163a24', color:'#7ff0a3' }}>✓ {t.builtIn}</span> : data?.ai ? <span className="chip" style={{ background:'#2c1a4a', color:'#c6a6ff' }}>✦ {t.aiBadge}{data.provider ? ` · ${data.provider}` : ''}</span> : null}
           {data?.ai && data.generatedAt ? <span className="chip bg-white/5 text-[var(--muted)]">{t.generatedAt} {new Date(data.generatedAt).toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US')}</span> : null}
           <span className="flex-1" />
-          {data && GAME_PA[game.id] && !running ? <button onClick={verifyAll} disabled={verifying} className="text-[13px] font-bold text-[#8db8ff] hover:text-white inline-flex items-center gap-1.5 disabled:opacity-60"><Icon d={IC.check} className="w-3.5 h-3.5" />{verifying ? t.verifying : t.verifyBtn}</button> : null}
+          {data && !needsPick && GAME_PA[game.id] && !running ? <button onClick={verifyAll} disabled={verifying} className="text-[13px] font-bold text-[#8db8ff] hover:text-white inline-flex items-center gap-1.5 disabled:opacity-60"><Icon d={IC.check} className="w-3.5 h-3.5" />{verifying ? t.verifying : t.verifyBtn}</button> : null}
           {!builtin && data && cfgReady(cfg) && !running ? <button onClick={regenerate} className="text-[13px] font-bold text-[#c6a6ff] hover:text-white inline-flex items-center gap-1.5"><Icon d={IC.refresh} className="w-3.5 h-3.5" />{t.regenerate}</button> : null}
           {game.custom ? <button onClick={removeGame} className="text-[13px] font-bold text-red-300 hover:text-red-200 inline-flex items-center gap-1.5"><Icon d={IC.trash} className="w-3.5 h-3.5" />{armRemove ? t.confirmRemove : t.remove}</button> : null}
         </div>
       </section>
+
+      {starterList.length > 1 ? <StarterPicker list={starterList} value={starter} onPick={pickStarter} cached={cachedStarter} t={t} lang={lang} /> : null}
 
       <nav className="mt-6 grid grid-cols-3 gap-2 sm:gap-3" role="tablist">
         {PHASES.map((p, i) => (
@@ -1467,7 +1553,7 @@ function App() {
       {showPanel ? <GenPanel gen={gen} t={t} onStop={stop} onRetry={retry} /> : null}
 
       {ph ? (
-        <div key={game.id + phase} className="fade-in">
+        <div key={dk + phase} className="fade-in">
           {data.ai ? <p className="mt-6 text-[13px] text-[#c6a6ff] border-l-4 border-[#6a49b0] pl-3 leading-relaxed">{t.aiDisclaimer}{data.searchNote === 'search_off' ? ' ' + t.searchOff : ''}{data.notes && one(data.notes, lang) ? ' ' + one(data.notes, lang) : ''}</p> : null}
           <section className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
             <div className="glass rounded-2xl p-5 border-2 border-white/15 flex flex-col gap-4 min-w-0">
@@ -1505,7 +1591,10 @@ function App() {
         </div>
       ) : !showPanel ? (
         <section className="mt-6 glass rounded-2xl border-2 border-dashed border-white/40 p-8 sm:p-12 text-center fade-in">
-          {!cfgReady(cfg) ? (<>
+          {needsPick ? (<>
+            <h2 className="text-xl sm:text-2xl font-black">{t.pickFirst}</h2>
+            <p className="text-[var(--muted)] mt-2 max-w-xl mx-auto">{t.pickFirstSub}</p>
+          </>) : !cfgReady(cfg) ? (<>
             <h2 className="text-xl sm:text-2xl font-black">{t.needCfg}</h2>
             <p className="text-[var(--muted)] mt-2 max-w-xl mx-auto">{t.needCfgSub}</p>
             <div className="flex flex-wrap gap-3 justify-center mt-6">
@@ -1516,7 +1605,7 @@ function App() {
             <h2 className="text-xl sm:text-2xl font-black">{t.idleTitle}</h2>
             <p className="text-[var(--muted)] mt-2 max-w-xl mx-auto">{t.idleSub}</p>
             {gen?.error ? <p className="mt-3 text-[13.5px] font-semibold text-red-300">{gen.error}</p> : null}
-            <button onClick={() => generate(game)} className="mt-6 brutal-sm brutal-btn rounded-xl px-5 py-3 font-black bg-[var(--accent)] text-[#0b0b0f] inline-flex items-center gap-2"><Icon d={IC.wand} />{t.startGen}</button>
+            <button onClick={() => generate(job)} className="mt-6 brutal-sm brutal-btn rounded-xl px-5 py-3 font-black bg-[var(--accent)] text-[#0b0b0f] inline-flex items-center gap-2"><Icon d={IC.wand} />{t.startGen}</button>
           </>)}
         </section>
       ) : null}

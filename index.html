@@ -155,7 +155,7 @@ const STARTERS = {
 /* ---------- Built-in walkthrough data: Pokémon Platinum ---------- */
 const BUILTIN_DATA = {
   platinum: {
-    starter: 'Chimchar', rev: 2,
+    starter: 'Chimchar', rev: 3,
     phases: {
       early: {
         levelRange: 'Lv. 5 – 26',
@@ -364,7 +364,9 @@ const BUILTIN_DATA = {
                     M('Lưỡi Đá','Stone Edge','rock','tm','TM71'), M('Vũ Điệu Kiếm','Swords Dance','normal','tm','TM75') ],
             role:{ label:T('Át Chủ Bài Vật Lý','Physical Ace'), desc:T('Miễn nhiễm Điện → càn quét Volkner; Earthquake trị đội Lửa của Flint; Stone Edge cho Yanmega và Togekiss.','Electric-immune → sweeps Volkner; Earthquake handles Flint\'s Fire team; Stone Edge for Yanmega and Togekiss.') } }
         ],
-        mascot: { name:'Giratina', dex:487, types:['ghost','dragon'],
+        mascot: { name:'Giratina', dex:487, types:['ghost','dragon'], replaces:'Staraptor',
+          why:T('Giratina (Ma/Rồng) trâu hơn hẳn và miễn nhiễm chiêu Thường lẫn Giác Đấu. Staraptor là vị trí dễ thay nhất vì Infernape và Floatzel đã gánh phần lớn mục tiêu của nó. Đổi lại bạn mất Uy Hiếp và mất con dùng HM Bay (Fly), nên cần một Pokémon khác giữ HM02.',
+                'Giratina (Ghost/Dragon) is far bulkier and immune to Normal and Fighting moves. Staraptor is the easiest slot to give up because Infernape and Floatzel already cover most of its targets. You lose Intimidate and your Fly user, so another Pokémon must carry HM02.'),
           note:T('Tùy chọn: Giratina (Dạng Nguyên Thủy) Lv. 47 bắt được trong cốt truyện tại Distortion World. Nếu lỡ hạ gục, nó xuất hiện lại ở Turnback Cave sau khi vào Hall of Fame. Có thể thay cho Staraptor nếu muốn một tanker.','Optional: Giratina (Origin Forme) Lv. 47 is caught during the story in the Distortion World. If you knock it out, it reappears in Turnback Cave after the Hall of Fame. Can replace Staraptor if you want a tank.') }
       }
     }
@@ -541,7 +543,8 @@ function normPlanPhase(p) {
     roster: (Array.isArray(p.roster) ? p.roster : []).slice(0, 6).map(r => ({ name: String(r?.name || '?'), dex: Number(r?.dex) || 0, types: (Array.isArray(r?.types) ? r.types : [r?.types]).filter(Boolean).slice(0, 2).map(asType) })),
     notes: asT(p.notes),
     changes: (Array.isArray(p.changes) ? p.changes : []).slice(0, 6).filter(c => c && c.in).map(c => ({ in: String(c.in), out: c.out ? String(c.out) : '', why: asT(c.why) })),
-    mascot: p.mascot && p.mascot.name ? { name: String(p.mascot.name), dex: Number(p.mascot.dex) || 0, types: (p.mascot.types || []).slice(0, 2).map(asType), note: asT(p.mascot.note) } : null,
+    mascot: p.mascot && p.mascot.name ? { name: String(p.mascot.name), dex: Number(p.mascot.dex) || 0, types: (p.mascot.types || []).slice(0, 2).map(asType), note: asT(p.mascot.note),
+      replaces: p.mascot.replaces ? String(p.mascot.replaces) : '', why: asT(p.mascot.why) } : null,
     team: null
   };
 }
@@ -553,7 +556,7 @@ function normPlanPhase(p) {
 const LS_CFG = 'pwtp.aiConfig.v1';
 const DEFAULT_GEMINI_MODELS = 'gemini-3.6-flash, gemini-3.5-flash-lite, gemini-3.8-flash, gemini-3.1-flash-lite';
 const DEFAULT_CFG = { provider: 'gemini', geminiKey: '', geminiModels: DEFAULT_GEMINI_MODELS, geminiSearch: false,
-  groqKey: '', groqModels: 'openai/gpt-oss-120b, openai/gpt-oss-20b', groqSearch: true, backup: true, tavilyKey: '' };
+  groqKey: '', groqModels: 'openai/gpt-oss-120b, openai/gpt-oss-20b', groqSearch: true, backup: true, tavilyKey: '', linkSite: 'bulbapedia' };
 const loadCfg = () => { const c = { ...DEFAULT_CFG, ...lsGet(LS_CFG, {}) };
   if (c.geminiModel && !lsGet(LS_CFG, {}).geminiModels) c.geminiModels = [c.geminiModel, ...DEFAULT_GEMINI_MODELS.split(',').map(s => s.trim()).filter(m => m !== c.geminiModel)].join(', ');
   if (c.groqModel && !lsGet(LS_CFG, {}).groqModels) c.groqModels = c.groqModel; return c; };
@@ -1010,7 +1013,7 @@ TASK: Reply with ONLY one JSON object, no prose:
   "tip": {"vi": "...", "en": "..."},
   "battles": [ {"leader": "Roark", "place": "Oreburgh City", "type": "rock", "ace": "Cranidos Lv. 14", "counters": ["Monferno"]} ],
   "changes": [ {"in": "Gyarados", "out": "Bibarel", "why": {"vi": "...", "en": "..."}} ],
-  ${key === 'end' ? '"mascot": {"name": "...", "dex": 0, "types": ["..."], "note": {"vi": "...", "en": "..."}} or null,' : '"mascot": null,'}
+  ${key === 'end' ? '"mascot": {"name": "...", "dex": 0, "types": ["..."], "note": {"vi": "where/when it is caught and at what level", "en": "..."}, "replaces": "<name of the team member it would replace>", "why": {"vi": "why that member is the best one to drop, and what the team loses", "en": "..."}} or null,' : '"mascot": null,'}
   ${key === 'early' ? '"notes": {"vi": "...", "en": "..."},' : ''}
   "team": [ ...exactly 6 Pokémon builds... ]
 }
@@ -1074,12 +1077,12 @@ const UI = {
       tavilyNote:'Tavily tìm Bulbapedia / Serebii / PokémonDB và đưa kết quả cho AI. Để trống nếu không dùng.', getKey:'Lấy key miễn phí', save:'Lưu', cancel:'Hủy',
       models_order:'Thứ tự model (tự chuyển khi model quá tải / hết lượt)', models_hint:'Cách nhau bằng dấu phẩy. Bấm "Tải danh sách model" để lấy đúng tên model key của bạn dùng được.',
       backup:'Dùng nhà cung cấp còn lại làm dự phòng', backupNote:'Khi mọi model Gemini đều quá tải hoặc hết lượt, tự chuyển sang Groq (và ngược lại).',
-      savedFor:'Cấu hình đang lưu cho địa chỉ:', originNote:'Mỗi địa chỉ (GitHub Pages, localhost qua start.bat, mở file trực tiếp) giữ cấu hình riêng. Hãy luôn mở cùng một địa chỉ, ví dụ trang GitHub Pages.',
+      linkSite:'Trang mở khi bấm vào Pokémon', linkSerebii:'Serebii (đúng thế hệ của game)', savedFor:'Cấu hình đang lưu cho địa chỉ:', originNote:'Mỗi địa chỉ (GitHub Pages, localhost qua start.bat, mở file trực tiếp) giữ cấu hình riêng. Hãy luôn mở cùng một địa chỉ, ví dụ trang GitHub Pages.',
       exportCfg:'Tải file cấu hình', importCfg:'Nạp file cấu hình', fileLoaded:'Đã nạp cấu hình từ file. Bấm Lưu để áp dụng.', fileBad:'File không phải cấu hình của ứng dụng này.',
       fileWarn:'File cấu hình chứa API key: cất ở máy của bạn, đừng tải lên GitHub hay gửi cho người khác.',
       privacy:'Key chỉ lưu trong trình duyệt này. Lưu ý: dữ liệu gửi tới gói free của Gemini có thể được Google dùng để cải thiện sản phẩm.', models:'model khả dụng' },
     storageOff:'Trình duyệt đang chặn lưu dữ liệu cho trang này (thường do tab ẩn danh hoặc cài đặt xóa dữ liệu trang khi đóng). Cấu hình AI và đội hình sẽ mất khi đóng tab. Hãy mở bằng tab thường, cho phép trang này lưu dữ liệu, hoặc dùng "Nạp file cấu hình" trong Cấu hình AI.',
-    triedModels:'Đã bỏ qua:', newMember:'Mới vào đội', hoverHint:'Rê chuột / chạm để xem chi tiết', howGet:'Cách có', askHow:'Hỏi AI cách lấy', howUnknown:'Chưa có thông tin. Cấu hình AI để hỏi.',
+    triedModels:'Đã bỏ qua:', newMember:'Mới vào đội', openOn:'Mở trên', mascotSwap:'Nếu dùng, thay cho:', mascotOut:'Sẽ bị thay', mascotHl:'Rê chuột vào ô này để xem con sẽ bị thay trong đội.', hoverHint:'Rê chuột / chạm để xem chi tiết', howGet:'Cách có', askHow:'Hỏi AI cách lấy', howUnknown:'Chưa có thông tin. Cấu hình AI để hỏi.',
     effect:'Hiệu ứng', heldBy:'Pokémon hoang dã có thể cầm', learnHow:'Cách học', paNoData:'PokéAPI không có dữ liệu cho mục này.', enOnly:'Mô tả lấy từ PokéAPI (chỉ có tiếng Anh).',
     oldValues:'Đã áp dụng chỉ số theo đúng thế hệ của game này.', cls:{ physical:'Vật lý', special:'Đặc biệt', status:'Trạng thái' }, mstat:{ power:'Sức mạnh', acc:'Chính xác', pp:'PP', prio:'Ưu tiên' }, gen_search:'Tìm web', formFix:'Đã hạ dạng: AI đề xuất {from} nhưng dạng này cần Lv. {need}, vượt mức Lv. {cap} của giai đoạn, nên dùng {to} (PokéAPI).', oldPlan:'Đội này được tạo bằng bản cũ (lập cả 3 giai đoạn một lúc, chưa kiểm tra cấp tiến hóa). Bấm "Tạo lại" để AI tra cứu lần lượt Early → Mid → End và đổi Pokémon khi cần.', changesTitle:'Thay đổi so với', noChanges:'Giữ nguyên đội hình, chỉ tiến hóa. Đội hiện tại vẫn là lựa chọn tối ưu cho giai đoạn này nên không cần đổi.',
     starterTitle:'Chọn Pokémon khởi đầu', starterSub:'Đội hình sẽ được build xoay quanh starter bạn chọn: bù điểm yếu hệ và tránh trùng vai trò.', starterAuto:'Để AI chọn', starterAutoSub:'Starter mạnh nhất', starterCached:'Đã có đội hình',
@@ -1122,12 +1125,12 @@ const UI = {
       tavilyNote:'Tavily searches Bulbapedia / Serebii / PokémonDB and hands the results to the AI. Leave empty to skip.', getKey:'Get a free key', save:'Save', cancel:'Cancel',
       models_order:'Model order (switches automatically on overload / quota)', models_hint:'Comma-separated. Press "Load model list" to get the exact names your key can use.',
       backup:'Use the other provider as backup', backupNote:'When every Gemini model is overloaded or out of quota, switch to Groq automatically (and vice versa).',
-      savedFor:'Settings are saved for this address:', originNote:'Each address (GitHub Pages, localhost via start.bat, opening the file directly) keeps its own settings. Always open the same address, e.g. your GitHub Pages site.',
+      linkSite:'Page opened when clicking a Pokémon', linkSerebii:'Serebii (matching the game\'s generation)', savedFor:'Settings are saved for this address:', originNote:'Each address (GitHub Pages, localhost via start.bat, opening the file directly) keeps its own settings. Always open the same address, e.g. your GitHub Pages site.',
       exportCfg:'Download settings file', importCfg:'Load settings file', fileLoaded:'Settings loaded from file. Press Save to apply.', fileBad:'That file isn\'t a settings file for this app.',
       fileWarn:'The settings file contains your API keys: keep it on your computer, never upload it to GitHub or share it.',
       privacy:'Keys are stored only in this browser. Note: data sent to Gemini\'s free tier may be used by Google to improve its products.', models:'models available' },
     storageOff:'This browser is blocking storage for this page (usually a private window or a "clear site data on close" setting). AI settings and teams will be lost when the tab closes. Use a normal window, allow this site to store data, or use "Load settings file" in AI settings.',
-    triedModels:'Skipped:', newMember:'New member', hoverHint:'Hover / tap for details', howGet:'How to get', askHow:'Ask AI where to get it', howUnknown:'No info yet. Set up AI to ask.',
+    triedModels:'Skipped:', newMember:'New member', openOn:'Open on', mascotSwap:'If used, it replaces:', mascotOut:'Would be replaced', mascotHl:'Hover this box to see which team member it replaces.', hoverHint:'Hover / tap for details', howGet:'How to get', askHow:'Ask AI where to get it', howUnknown:'No info yet. Set up AI to ask.',
     effect:'Effect', heldBy:'Held by wild Pokémon', learnHow:'Learned by', paNoData:'PokéAPI has no data for this.', enOnly:'',
     oldValues:'Stats shown as they were in this game\'s generation.', cls:{ physical:'Physical', special:'Special', status:'Status' }, mstat:{ power:'Power', acc:'Acc.', pp:'PP', prio:'Priority' }, gen_search:'Web search', formFix:'Form corrected: the AI suggested {from}, but it needs Lv. {need}, above this phase\'s Lv. {cap} cap, so {to} is used instead (PokéAPI).', oldPlan:'This team was made by an older version (all three phases at once, no evolution-level check). Press "Regenerate" to research Early → Mid → End in order and swap Pokémon where it helps.', changesTitle:'Changes since', noChanges:'Same team, just evolved. The current team is still the best choice for this phase, so no swaps are needed.',
     starterTitle:'Choose your starter', starterSub:'The team is built around the starter you pick: covering its type weaknesses and avoiding overlapping roles.', starterAuto:'Let AI pick', starterAutoSub:'Strongest starter', starterCached:'Team ready',
@@ -1265,16 +1268,25 @@ function AddGameModal({ open, onClose, onSave, t }) {
 }
 
 /* ---------- Hover / tap popover (portal, so cards' overflow never clips it) ---------- */
-function InfoPop({ children, render, className = '', label, style }) {
+function InfoPop({ children, render, className = '', label, style, passive = false }) {
   const [open, setOpen] = useState(false); const [pos, setPos] = useState(null);
   const ref = useRef(null); const hideT = useRef(null);
   const place = () => {
     const r = ref.current?.getBoundingClientRect(); if (!r) return;
-    const w = Math.min(320, window.innerWidth - 24);
-    const left = Math.min(Math.max(12, r.left), window.innerWidth - w - 12);
-    const below = window.innerHeight - r.bottom - 20, above = r.top - 20;
-    const up = below < 320 && above > below;   /* open toward the side with more room */
-    setPos({ left, w, top: up ? null : r.bottom + 8, bottom: up ? window.innerHeight - r.top + 8 : null, maxH: Math.max(160, up ? above : below) });
+    const W = window.innerWidth, H = window.innerHeight, w = Math.min(320, W - 24);
+    /* 1st choice: beside the whole card (right, then left) so nothing on the card gets covered */
+    const a = (ref.current.closest('article') || ref.current).getBoundingClientRect();
+    let left = null;
+    if (a.right + 12 + w <= W - 12) left = a.right + 12;
+    else if (a.left - 12 - w >= 12) left = a.left - 12 - w;
+    if (left !== null) {
+      const top = Math.max(12, Math.min(r.top - 6, H - 12 - 340));
+      setPos({ left, w, top, bottom: null, maxH: H - top - 12 }); return;
+    }
+    /* narrow screens: dock to the screen edge farthest from the row, so the next moves stay visible */
+    left = Math.round((W - w) / 2);
+    if (r.top < H / 2) setPos({ left, w, top: null, bottom: 12, maxH: Math.max(160, Math.min(H * 0.5, H - r.bottom - 24)) });
+    else setPos({ left, w, top: 12, bottom: null, maxH: Math.max(160, Math.min(H * 0.5, r.top - 24)) });
   };
   const openedAt = useRef(0);
   const show = () => { clearTimeout(hideT.current); place(); if (!open) openedAt.current = Date.now(); setOpen(true); };
@@ -1292,14 +1304,30 @@ function InfoPop({ children, render, className = '', label, style }) {
   return (
     <>
       <button ref={ref} type="button" aria-expanded={open} aria-label={label} className={className} style={style}
-        onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide} onClick={toggle}>{children}</button>
+        onPointerEnter={(e) => { if (e.pointerType === 'mouse') show(); }} onPointerLeave={(e) => { if (e.pointerType === 'mouse') hide(); }}
+        onFocus={show} onBlur={hide} onClick={toggle}>{children}</button>
       {open && pos ? ReactDOM.createPortal(
         <div role="tooltip" onMouseEnter={() => clearTimeout(hideT.current)} onMouseLeave={hide}
-          style={{ position: 'fixed', left: pos.left, top: pos.top ?? undefined, bottom: pos.bottom ?? undefined, width: pos.w, zIndex: 70, maxHeight: pos.maxH, overflowY: 'auto' }}
+          style={{ pointerEvents: passive ? 'none' : 'auto', position: 'fixed', left: pos.left, top: pos.top ?? undefined, bottom: pos.bottom ?? undefined, width: pos.w, zIndex: 70, maxHeight: pos.maxH, overflowY: 'auto' }}
           className="rounded-xl p-3.5 text-[12.5px] leading-relaxed border-2 border-white/80 bg-[#10121b] shadow-[4px_4px_0_#f2f3f7] fade-in">{render()}</div>, document.body) : null}
     </>
   );
 }
+
+const SEREBII_DIR = { 1: 'pokedex', 2: 'pokedex-gs', 3: 'pokedex-rs', 4: 'pokedex-dp', 5: 'pokedex-bw', 6: 'pokedex-xy', 7: 'pokedex-sm', 8: 'pokedex-swsh', 9: 'pokedex-sv' };
+function pokeLink(name, dex, ctx) {
+  const n = String(name || '').trim();
+  const slug = n.toLowerCase().replace(/♀/g, '-f').replace(/♂/g, '-m').replace(/[éè]/g, 'e').replace(/[’'.:]/g, '').replace(/\s+/g, '-');
+  const site = ctx?.linkSite || 'bulbapedia';
+  if (site === 'pokemondb') return `https://pokemondb.net/pokedex/${slug}`;
+  if (site === 'serebii') {
+    const g = Math.min(9, Math.max(1, ctx?.gen || 9)); const dir = SEREBII_DIR[g];
+    if (g >= 8) return `https://www.serebii.net/${dir}/${slug.replace(/-/g, '')}/`;
+    if (dex) return `https://www.serebii.net/${dir}/${String(dex).padStart(3, '0')}.shtml`;
+  }
+  return `https://bulbapedia.bulbagarden.net/wiki/${encodeURIComponent(n.replace(/\s+/g, '_'))}_(Pok%C3%A9mon)`;
+}
+const LINK_SITE_NAME = { bulbapedia: 'Bulbapedia', serebii: 'Serebii', pokemondb: 'PokémonDB' };
 
 const CLS_STYLE = { physical: ['#3d1f14', '#ffb08a'], special: ['#14284a', '#8db8ff'], status: ['#24262f', '#c9ccd8'] };
 function usePA(fn, deps) {
@@ -1369,20 +1397,23 @@ function VMark({ state, t }) {
 }
 
 /* ---------- Pokémon card (with PokéAPI verification) ---------- */
-function PokemonCard({ mon, lang, t, isNew, ctx, onAskHow }) {
+function PokemonCard({ mon, lang, t, isNew, ctx, onAskHow, highlight }) {
   const primary = mon.types?.[0] || 'normal';
   const [imgOk, setImgOk] = useState(true);
   const nat = mon.nature; const v = mon.verify;
   const none = <span className="text-[var(--muted)] italic">{t.noMech}</span>;
   const okMoves = v?.moves ? v.moves.filter(x => x === 'ok').length : 0;
   return (
-    <article className="poke-card p-5 overflow-hidden flex flex-col gap-4 min-w-0" style={{ '--tc': tc(primary) }}>
+    <article className={`poke-card p-5 overflow-hidden flex flex-col gap-4 min-w-0 ${highlight ? 'outline outline-4 outline-offset-4 outline-[#ff9a9a]' : ''}`} style={{ '--tc': tc(primary) }}>
       <div className="orb" />
+      {highlight ? <div className="absolute top-3 right-3 z-10 chip" style={{ background:'#3d1717', color:'#ff9a9a' }}>{t.mascotOut}</div> : null}
       <div className="flex items-start gap-3 relative">
         <div className="shrink-0 w-[76px] h-[76px] rounded-2xl grid place-items-center border-2" style={{ borderColor: tc(primary), background: `radial-gradient(circle at 50% 60%, ${tc(primary)}40, transparent 70%)` }}>
+          <a href={pokeLink(mon.name, mon.dex, ctx)} target="_blank" rel="noopener" title={`${t.openOn} ${LINK_SITE_NAME[ctx?.linkSite || 'bulbapedia']}`} className="grid place-items-center w-full h-full rounded-2xl hover:scale-105 transition-transform">
           {imgOk && spriteUrl(mon.dex)
             ? <img src={spriteUrl(mon.dex)} alt={mon.name} loading="lazy" onError={() => setImgOk(false)} className="w-[70px] h-[70px] object-contain" />
             : <span className="text-3xl font-black" style={{ color: tc(primary) }}>{mon.name?.[0]}</span>}
+          </a>
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
@@ -1393,7 +1424,7 @@ function PokemonCard({ mon, lang, t, isNew, ctx, onAskHow }) {
               : v?.status === 'novg' ? <span className="chip bg-white/5 text-[var(--muted)]" title={t.vNoVG}>{t.vNoVG}</span>
               : v?.status === 'unknown' ? <span className="chip" style={{ background:'#3d2b0e', color:'#ffcf7a' }}>{t.vUnknown}</span> : null}
           </div>
-          <h3 className="text-[22px] leading-tight font-black tracking-tight truncate">{mon.name}</h3>
+          <h3 className="text-[22px] leading-tight font-black tracking-tight truncate"><a href={pokeLink(mon.name, mon.dex, ctx)} target="_blank" rel="noopener" title={`${t.openOn} ${LINK_SITE_NAME[ctx?.linkSite || 'bulbapedia']}`} className="hover:underline decoration-2 underline-offset-4" style={{ textDecorationColor: tc(primary) }}>{mon.name}<span className="text-[13px] text-[var(--muted)] font-bold ml-1.5 align-middle">↗</span></a></h3>
           <div className="flex flex-wrap gap-1.5 mt-1.5">{(mon.types||[]).map(ty => <TypeBadge key={ty} type={ty} lang={lang} />)}</div>
         </div>
       </div>
@@ -1440,7 +1471,7 @@ function PokemonCard({ mon, lang, t, isNew, ctx, onAskHow }) {
             const vs = v?.moves?.[i];
             return (
               <li key={i} className="min-w-0">
-                <InfoPop label={bi(mv.name, lang)} render={() => <MoveDetails mv={mv} ctx={ctx} lang={lang} t={t} />}
+                <InfoPop passive label={bi(mv.name, lang)} render={() => <MoveDetails mv={mv} ctx={ctx} lang={lang} t={t} />}
                   className="w-full flex items-center gap-2 rounded-xl px-2.5 py-2 bg-black/30 border min-w-0 text-left hover:bg-white/5 transition-colors cursor-help"
                   style={{ borderLeft: `4px solid ${tc(mv.type)}`, borderColor: vs === 'bad' ? '#9a3a3a' : 'rgba(255,255,255,.1)' }}>
                   <span className={`flex-1 min-w-0 text-[13px] font-semibold leading-snug ${vs === 'bad' ? 'line-through decoration-[#ff9a9a]/70' : ''}`}>{bi(mv.name, lang)}</span>
@@ -1623,6 +1654,10 @@ function SettingsModal({ open, onClose, cfg, onSave, t, claudeAvailable }) {
           <label className="grid gap-1 text-[13px] font-semibold">{c.tavily} · <a className="text-[#8db8ff] underline" href="https://app.tavily.com" target="_blank" rel="noopener">{c.getKey} ↗</a>
             <input id="cfg-tkey" type="password" autoComplete="off" className={field} value={f.tavilyKey} onChange={e => setF({ ...f, tavilyKey: e.target.value.trim() })} placeholder="tvly-…" />
             <span className="text-[12px] font-normal text-[var(--muted)]">{c.tavilyNote}</span></label>
+          <label className="grid gap-1 text-[13px] font-semibold">{c.linkSite}
+            <select id="cfg-link" className={field} value={f.linkSite || 'bulbapedia'} onChange={e => setF({ ...f, linkSite: e.target.value })}>
+              <option value="bulbapedia">Bulbapedia</option><option value="serebii">{c.linkSerebii}</option><option value="pokemondb">PokémonDB</option>
+            </select></label>
           <div className="grid gap-2 rounded-xl p-3 border border-white/15">
             <div className="text-[12.5px]"><span className="text-[var(--muted)]">{c.savedFor} </span><span className="dex-num font-bold break-all">{location.protocol === 'file:' ? 'file://' : location.origin}</span></div>
             <p className="text-[12px] text-[var(--muted)]">{c.originNote}</p>
@@ -1650,7 +1685,7 @@ function SettingsModal({ open, onClose, cfg, onSave, t, claudeAvailable }) {
    APP
    ===================================================================== */
 const PHASES = ['early', 'mid', 'end'];
-const APP_VERSION = 'v2026.11.07-r8 · chi tiết chiêu khi rê chuột + cách lấy vật phẩm';
+const APP_VERSION = 'v2026.11.07-r9 · bảng chi tiết mở bên cạnh + link Pokémon + mascot thay ai';
 const cfgReady = (c) => c.provider === 'gemini' ? !!c.geminiKey : c.provider === 'groq' ? !!c.groqKey : c.provider === 'claude';
 const providerLabel = (c) => c.provider === 'gemini' ? `Gemini · ${modelList(c.geminiModels)[0] || ''}` : c.provider === 'groq' ? `Groq · ${modelList(c.groqModels)[0] || ''}` : 'Claude';
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -1670,6 +1705,7 @@ function App() {
   const [toast, setToast] = useState('');
   const [armRemove, setArmRemove] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [hl, setHl] = useState('');
   const [claudeSample, setClaudeSample] = useState(null);
   const fileRef = useRef(null);
   const ctlRef = useRef({});
@@ -1780,7 +1816,7 @@ function App() {
     }
   };
 
-  const cardCtx = useMemo(() => ({ gid: game.id, gen: Number(game.gen) || 9 }), [game.id, game.gen]);
+  const cardCtx = useMemo(() => ({ gid: game.id, gen: Number(game.gen) || 9, linkSite: cfg.linkSite || 'bulbapedia' }), [game.id, game.gen, cfg.linkSite]);
   /* Ask the AI where to get an item (for teams made before items carried "how"), then save it on every card using that item */
   const askItemHow = async (item) => {
     const prompt = `${COMMON_RULES(job)}
@@ -1944,16 +1980,31 @@ Reply with ONLY: {"how": {"vi": "...", "en": "..."}}`;
             </section>
           ) : null}
           <section className="mt-8 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 stagger">
-            {ph.team?.length ? ph.team.map((m, i) => <PokemonCard key={m.name + i} mon={m} lang={lang} t={t} ctx={cardCtx} onAskHow={cfgReady(cfg) ? askItemHow : null} isNew={(ph.changes || []).some(c => normKey(c.in) === normKey(m.name))} />) : (ph.roster || []).map((r, i) => <SkeletonCard key={r.name + i} r={r} lang={lang} />)}
+            {ph.team?.length ? ph.team.map((m, i) => <PokemonCard key={m.name + i} mon={m} lang={lang} t={t} ctx={cardCtx} highlight={!!hl && normKey(hl) === normKey(m.name)} onAskHow={cfgReady(cfg) ? askItemHow : null} isNew={(ph.changes || []).some(c => normKey(c.in) === normKey(m.name))} />) : (ph.roster || []).map((r, i) => <SkeletonCard key={r.name + i} r={r} lang={lang} />)}
           </section>
           {ph.mascot ? (
-            <section className="mt-8 rounded-2xl p-4 sm:p-5 border-2 border-dashed flex gap-4 items-center glass" style={{ borderColor: `${tc(ph.mascot.types?.[0])}aa` }}>
-              <img src={spriteUrl(ph.mascot.dex)} alt="" className="w-20 h-20 object-contain shrink-0" onError={e => e.currentTarget.style.display='none'} />
-              <div className="min-w-0">
-                <div className="text-[11px] uppercase tracking-[.14em] font-extrabold text-[var(--muted)]">{t.mascot}</div>
-                <div className="flex items-center gap-2 flex-wrap mt-0.5"><span className="font-black text-lg">{ph.mascot.name}</span>{(ph.mascot.types||[]).map(ty => <TypeBadge key={ty} type={ty} lang={lang} small />)}</div>
-                <p className="text-[13px] text-white/75 mt-1 leading-relaxed">{one(ph.mascot.note, lang)}</p>
+            <section className="mt-8 rounded-2xl p-4 sm:p-5 border-2 border-dashed grid gap-3 glass" style={{ borderColor: `${tc(ph.mascot.types?.[0])}aa` }}
+              onMouseEnter={() => setHl(ph.mascot.replaces || '')} onMouseLeave={() => setHl('')}>
+              <div className="flex gap-4 items-center min-w-0">
+                <a href={pokeLink(ph.mascot.name, ph.mascot.dex, cardCtx)} target="_blank" rel="noopener" className="shrink-0 hover:scale-105 transition-transform"><img src={spriteUrl(ph.mascot.dex)} alt={ph.mascot.name} className="w-20 h-20 object-contain" onError={e => e.currentTarget.style.display='none'} /></a>
+                <div className="min-w-0">
+                  <div className="text-[11px] uppercase tracking-[.14em] font-extrabold text-[var(--muted)]">{t.mascot}</div>
+                  <div className="flex items-center gap-2 flex-wrap mt-0.5"><a href={pokeLink(ph.mascot.name, ph.mascot.dex, cardCtx)} target="_blank" rel="noopener" className="font-black text-lg hover:underline">{ph.mascot.name} <span className="text-[13px] text-[var(--muted)]">↗</span></a>{(ph.mascot.types||[]).map(ty => <TypeBadge key={ty} type={ty} lang={lang} small />)}</div>
+                  <p className="text-[13px] text-white/75 mt-1 leading-relaxed">{one(ph.mascot.note, lang)}</p>
+                </div>
               </div>
+              {ph.mascot.replaces ? (
+                <div className="rounded-xl p-3 bg-black/30 border border-white/15 grid gap-1.5">
+                  <div className="flex flex-wrap items-center gap-2 text-[13.5px]">
+                    <span className="font-bold">{t.mascotSwap}</span>
+                    <span className="chip" style={{ background:'#3d1717', color:'#ff9a9a' }}>− {ph.mascot.replaces}</span>
+                    <span className="text-[var(--muted)]">→</span>
+                    <span className="chip" style={{ background:'#163a24', color:'#7ff0a3' }}>+ {ph.mascot.name}</span>
+                  </div>
+                  {ph.mascot.why ? <p className="text-[13px] text-white/80 leading-relaxed">{one(ph.mascot.why, lang)}</p> : null}
+                  <p className="text-[11.5px] text-[var(--muted)]">{t.mascotHl}</p>
+                </div>
+              ) : null}
             </section>
           ) : null}
           {data.sources?.length ? (

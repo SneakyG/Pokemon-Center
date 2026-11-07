@@ -155,7 +155,7 @@ const STARTERS = {
 /* ---------- Built-in walkthrough data: Pokémon Platinum ---------- */
 const BUILTIN_DATA = {
   platinum: {
-    starter: 'Chimchar',
+    starter: 'Chimchar', rev: 2,
     phases: {
       early: {
         levelRange: 'Lv. 5 – 26',
@@ -201,7 +201,7 @@ const BUILTIN_DATA = {
             evo:T('Budew → Roselia (thân thiết cao, ban ngày) → Roserade (Đá Sáng)','Budew → Roselia (high friendship, daytime) → Roserade (Shiny Stone)'),
             ability:{ name:T('Tự Chữa Lành','Natural Cure'), desc:T('Tự giải trạng thái bất lợi khi rút về.','Heals status conditions when switched out.') },
             nature:{ name:T('Khiêm Tốn','Modest'), up:'spa', down:'atk' },
-            item:{ name:T('Chuông Êm Dịu','Soothe Bell'), note:T('Tăng độ thân thiết để tiến hóa nhanh — nhận ở Hearthome City.','Speeds up friendship evolution — obtained in Hearthome City.') },
+            item:{ name:T('Chuông Êm Dịu','Soothe Bell'), note:T('Tăng độ thân thiết để Budew tiến hóa nhanh hơn.','Speeds up Budew\'s friendship evolution.') },
             moves:[ M('Hút Mạnh','Mega Drain','grass','level','Lv. 13'), M('Bào Tử Tê Liệt','Stun Spore','grass','level','Lv. 10'),
                     M('Sinh Trưởng','Growth','normal','level','Lv. 4'), M('Hút Máu','Absorb','grass','level','Lv. 1') ],
             role:{ label:T('Hỗ Trợ Trạng Thái','Status Support'), desc:T('Mega Drain 4× lên Geodude, 2× lên Onix/Cranidos; Stun Spore làm tê liệt boss nhanh.','Mega Drain is 4× on Geodude, 2× on Onix/Cranidos; Stun Spore cripples fast bosses.') } },
@@ -243,7 +243,7 @@ const BUILTIN_DATA = {
             evo:T('Tiến hóa cuối ở Lv. 36','Final stage at Lv. 36'),
             ability:{ name:T('Rực Rỡ','Blaze'), desc:T('Tăng 50% sức mạnh chiêu Lửa khi HP ≤ 1/3.','Boosts Fire moves by 50% at ≤ 1/3 HP.') },
             nature:{ name:T('Ngây Thơ','Naive'), up:'spe', down:'spd' },
-            item:{ name:T('Than Củi','Charcoal'), note:T('+20% sức mạnh chiêu Lửa.','+20% Fire move power.') },
+            item:{ name:T('Chuông Vỏ Sò','Shell Bell'), note:T('Hồi lại 1/8 lượng sát thương gây ra — giữ Infernape trụ lâu hơn.','Restores 1/8 of damage dealt — keeps Infernape going.') },
             moves:[ M('Cận Chiến','Close Combat','fighting','level','Lv. 41'), M('Bánh Xe Lửa','Flame Wheel','fire','level','Lv. 21'),
                     M('Đấm Tốc Độ','Mach Punch','fighting','level','Lv. 14'), M('Đấm Sấm Sét','ThunderPunch','electric','tutor','Tutor') ],
             role:{ label:T('Át Chủ Bài Hỗn Hợp','Mixed Ace'), desc:T('Lửa + Giác Đấu trị cả Byron (Thép) lẫn Candice (Băng). ThunderPunch dành cho Gyarados/Floatzel của Wake.','Fire + Fighting covers Byron (Steel) and Candice (Ice). ThunderPunch handles Wake\'s Gyarados/Floatzel.') } },
@@ -252,7 +252,7 @@ const BUILTIN_DATA = {
             evo:T('Tiến hóa cuối ở Lv. 34 — học ngay Cận Chiến','Final stage at Lv. 34 — learns Close Combat immediately'),
             ability:{ name:T('Uy Hiếp','Intimidate'), desc:T('Giảm 1 bậc Tấn Công đối thủ khi vào sân.','Lowers foe\'s Attack by 1 stage on entry.') },
             nature:{ name:T('Cứng Cỏi','Adamant'), up:'atk', down:'spa' },
-            item:{ name:T('Mỏ Nhọn','Sharp Beak'), note:T('+20% sức mạnh chiêu Bay.','+20% Flying move power.') },
+            item:{ name:T('Quả Sitrus','Sitrus Berry'), note:T('Hồi 1/4 HP khi máu dưới một nửa.','Restores 1/4 HP when below half.') },
             moves:[ M('Cận Chiến','Close Combat','fighting','level','Lv. 34'), M('Bay','Fly','flying','hm','HM02'),
                     M('Đòn Cánh','Wing Attack','flying','level','Lv. 9'), M('Tấn Công Nhanh','Quick Attack','normal','level','Lv. 5') ],
             role:{ label:T('Kẻ Phá Vỡ Vật Lý','Physical Wallbreaker'), desc:T('Fly 2× lên đội Giác Đấu của Maylene; Close Combat xuyên thủng Thép và Băng. Kiêm HM Bay.','Fly is 2× on Maylene\'s Fighters; Close Combat breaks Steel and Ice. Doubles as the Fly user.') } },
@@ -314,7 +314,7 @@ const BUILTIN_DATA = {
             evo:T('Dạng cuối','Final form'),
             ability:{ name:T('Rực Rỡ','Blaze'), desc:T('Tăng 50% sức mạnh chiêu Lửa khi HP ≤ 1/3.','Boosts Fire moves by 50% at ≤ 1/3 HP.') },
             nature:{ name:T('Ngây Thơ','Naive'), up:'spe', down:'spd' },
-            item:{ name:T('Than Củi','Charcoal'), note:T('+20% sức mạnh chiêu Lửa.','+20% Fire move power.') },
+            item:{ name:T('Chuông Vỏ Sò','Shell Bell'), note:T('Hồi lại 1/8 lượng sát thương gây ra — giữ Infernape trụ lâu hơn.','Restores 1/8 of damage dealt — keeps Infernape going.') },
             moves:[ M('Phun Lửa','Flamethrower','fire','tm','TM35'), M('Cận Chiến','Close Combat','fighting','level','Lv. 41'),
                     M('Đấm Tốc Độ','Mach Punch','fighting','level','Lv. 14'), M('Đấm Sấm Sét','ThunderPunch','electric','tutor','Tutor') ],
             role:{ label:T('Át Chủ Bài Hỗn Hợp','Mixed Ace'), desc:T('Flamethrower 4× lên Scizor (Aaron), 2× lên Bronzong (Lucian); Close Combat hạ Drapion và Lucario của Cynthia.','Flamethrower is 4× on Aaron\'s Scizor, 2× on Lucian\'s Bronzong; Close Combat handles Drapion and Cynthia\'s Lucario.') } },
@@ -323,7 +323,7 @@ const BUILTIN_DATA = {
             evo:T('Dạng cuối','Final form'),
             ability:{ name:T('Uy Hiếp','Intimidate'), desc:T('Giảm 1 bậc Tấn Công đối thủ khi vào sân.','Lowers foe\'s Attack by 1 stage on entry.') },
             nature:{ name:T('Cứng Cỏi','Adamant'), up:'atk', down:'spa' },
-            item:{ name:T('Mỏ Nhọn','Sharp Beak'), note:T('+20% sức mạnh chiêu Bay.','+20% Flying move power.') },
+            item:{ name:T('Quả Sitrus','Sitrus Berry'), note:T('Hồi 1/4 HP khi máu dưới một nửa.','Restores 1/4 HP when below half.') },
             moves:[ M('Chim Dũng Cảm','Brave Bird','flying','level','Lv. 49'), M('Cận Chiến','Close Combat','fighting','level','Lv. 34'),
                     M('Quay Đầu','U-turn','bug','tm','TM89'), M('Tấn Công Nhanh','Quick Attack','normal','level','Lv. 5') ],
             role:{ label:T('Kẻ Phá Vỡ & Pivot','Wallbreaker & Pivot'), desc:T('Brave Bird 4× lên Heracross, 2× lên Gallade; Intimidate làm suy yếu dàn vật lý của Aaron và Bertha.','Brave Bird is 4× on Heracross, 2× on Gallade; Intimidate blunts Aaron\'s and Bertha\'s physical attackers.') } },
@@ -370,6 +370,21 @@ const BUILTIN_DATA = {
     }
   }
 };
+
+/* How to obtain each built-in Platinum item during the story (locations checked on Serebii's Platinum item dex) */
+const PT_ITEM_HOW = {
+  'Oran Berry': T('Cây berry ở Route 205 và Floaroma Town; Berry Master ở Route 208 cũng tặng.', 'Berry trees on Route 205 and in Floaroma Town; the Berry Master on Route 208 also gives them.'),
+  'Pecha Berry': T('Cây berry ở Route 205 và Floaroma Town (sau đó có thêm ở Route 211, 212, 215).', 'Berry trees on Route 205 and in Floaroma Town (later also Routes 211, 212, 215).'),
+  'Soothe Bell': T('Eterna Forest (trên đường tới Gym 2), hoặc Pokémon Mansion ở Route 212.', 'Eterna Forest (on the way to Gym 2), or the Pokémon Mansion on Route 212.'),
+  'Shell Bell': T('Hearthome City — thành phố của Gym 3.', 'Hearthome City — the Gym 3 city.'),
+  'Sitrus Berry': T('Cây berry ở Route 210, 212, 214; Berry Master ở Route 208 cũng tặng.', 'Berry trees on Routes 210, 212, 214; the Berry Master on Route 208 also gives them.'),
+  'Magnet': T('Iron Island (đi phà từ Canalave City).', 'Iron Island (ferry from Canalave City).'),
+  'Mystic Water': T('Pastoria City — thành phố của Gym 5.', 'Pastoria City — the Gym 5 city.'),
+  'Miracle Seed': T('Floaroma Meadow, ngay cạnh Floaroma Town.', 'Floaroma Meadow, next to Floaroma Town.'),
+  'Soft Sand': T('Mt. Coronet.', 'Mt. Coronet.'),
+  'Yache Berry': T('Pastoria City — thành phố của Gym 5.', 'Pastoria City — the Gym 5 city.')
+};
+Object.values(BUILTIN_DATA.platinum.phases).forEach(ph => ph.team.forEach(m => { if (m.item && PT_ITEM_HOW[m.item.name.en]) m.item.how = PT_ITEM_HOW[m.item.name.en]; }));
 
 /* JSON template shown to users adding a new game */
 function makeTemplate(gameName) {
@@ -507,7 +522,7 @@ function normMon(m) {
     evo: asT(m.evo),
     ability: m.ability && m.ability.name ? { name: asT(m.ability.name), desc: asT(m.ability.desc) } : null,
     nature: m.nature && m.nature.name ? { name: asT(m.nature.name), up: STAT_KEYS.includes(m.nature.up) ? m.nature.up : null, down: STAT_KEYS.includes(m.nature.down) ? m.nature.down : null } : null,
-    item: m.item && m.item.name ? { name: asT(m.item.name), note: asT(m.item.note) } : null,
+    item: m.item && m.item.name ? { name: asT(m.item.name), note: asT(m.item.note), how: asT(m.item.how) } : null,
     moves: (Array.isArray(m.moves) ? m.moves : []).slice(0, 4).map(mv => ({
       name: asT(mv?.name) || { vi: '?', en: '?' }, type: asType(mv?.type),
       method: { k: METHOD_KEYS.includes(mv?.method?.k) ? mv.method.k : 'other', v: String(mv?.method?.v || '') }
@@ -902,6 +917,67 @@ async function fixForms(team, cap, game, signal) {
   }
 }
 
+/* ---------- Move & item details (PokéAPI), version-aware ---------- */
+const VG_ORDER = ['red-blue','yellow','gold-silver','crystal','ruby-sapphire','emerald','firered-leafgreen','colosseum','xd','diamond-pearl','platinum','heartgold-soulsilver',
+  'black-white','black-2-white-2','x-y','omega-ruby-alpha-sapphire','sun-moon','ultra-sun-ultra-moon','lets-go-pikachu-lets-go-eevee','sword-shield',
+  'brilliant-diamond-and-shining-pearl','brilliant-diamond-shining-pearl','legends-arceus','scarlet-violet','legends-za'];
+const SLUG_ALIAS = { faintattack: 'feint-attack', vicegrip: 'vise-grip', hijumpkick: 'high-jump-kick', smellingsalt: 'smelling-salts', ancientpower: 'ancient-power' };
+async function resolveSlug(kind, nameEn, signal) {
+  const raw = String(nameEn || '').trim(); if (!raw) return null;
+  const ck = 'sl:' + kind + ':' + normKey(raw); const c = paCacheGet(ck); if (c) return c;
+  const guess = raw.toLowerCase().replace(/[éè]/g, 'e').replace(/[’'.]/g, '').replace(/\s+/g, '-');
+  let slug = SLUG_ALIAS[normKey(raw)] || null;
+  if (!slug && await paGet(`${kind}/${guess}`, signal)) slug = guess;
+  if (!slug) {
+    let list = paCacheGet('list:' + kind);
+    if (!list) { const j = await paGet(`${kind}?limit=3000`, signal); list = (j?.results || []).map(r => r.name); paCacheSet('list:' + kind, list); }
+    slug = list.find(n => normKey(n) === normKey(raw)) || null;
+  }
+  if (slug) paCacheSet(ck, slug);
+  return slug;
+}
+const vgOf = (gid) => (GAME_PA[gid]?.vg || []).find(v => VG_ORDER.includes(v)) || null;
+const PHYS_TYPES = ['normal','fighting','flying','poison','ground','rock','bug','ghost','steel'];
+
+async function moveInfo(nameEn, gid, gen, signal) {
+  const slug = await resolveSlug('move', nameEn, signal); if (!slug) return null;
+  const ck = 'mi:' + slug; let mi = paCacheGet(ck);
+  if (!mi) {
+    const mv = await paGet('move/' + slug, signal); if (!mv) return null;
+    const fl = {}; (mv.flavor_text_entries || []).filter(f => f.language.name === 'en').forEach(f => { fl[f.version_group.name] = f.flavor_text.replace(/\s+/g, ' '); });
+    mi = { slug, type: mv.type?.name, power: mv.power, acc: mv.accuracy, pp: mv.pp, prio: mv.priority, cls: mv.damage_class?.name, chance: mv.effect_chance,
+      effect: (mv.effect_entries || []).find(e => e.language.name === 'en')?.short_effect || '',
+      past: (mv.past_values || []).map(pv => ({ vg: pv.version_group.name, power: pv.power, acc: pv.accuracy, pp: pv.pp, type: pv.type?.name || null, chance: pv.effect_chance })), fl };
+    paCacheSet(ck, mi);
+  }
+  /* apply the values that were in force in this game's version group */
+  const out = { ...mi }; const vg = vgOf(gid); const at = vg ? VG_ORDER.indexOf(vg) : -1; let changed = false;
+  if (at >= 0) {
+    const later = mi.past.filter(pv => VG_ORDER.indexOf(pv.vg) > at).sort((a, b) => VG_ORDER.indexOf(a.vg) - VG_ORDER.indexOf(b.vg));
+    for (const pv of later.reverse()) { ['power', 'acc', 'pp', 'type', 'chance'].forEach(k => { if (pv[k] != null) { out[k] = pv[k]; changed = true; } }); }
+  }
+  if (gen && gen <= 3 && out.cls !== 'status') out.cls = PHYS_TYPES.includes(out.type) ? 'physical' : 'special';
+  out.effectText = String(out.effect || '').replace(/\$effect_chance/g, out.chance ?? '');
+  out.flavor = (vg && mi.fl[vg]) || Object.values(mi.fl).pop() || '';
+  out.oldValues = changed;
+  return out;
+}
+
+async function itemInfo(nameEn, gid, signal) {
+  const slug = await resolveSlug('item', nameEn, signal); if (!slug) return null;
+  const ck = 'ii:' + slug; let ii = paCacheGet(ck);
+  if (!ii) {
+    const it = await paGet('item/' + slug, signal); if (!it) return null;
+    const fl = {}; (it.flavor_text_entries || []).filter(f => f.language.name === 'en').forEach(f => { fl[f.version_group.name] = String(f.text).replace(/\s+/g, ' '); });
+    ii = { slug, sprite: it.sprites?.default || '', effect: (it.effect_entries || []).find(e => e.language.name === 'en')?.short_effect || '',
+      held: (it.held_by_pokemon || []).map(hp => ({ p: hp.pokemon.name, v: hp.version_details.map(vd => [vd.version.name, vd.rarity]) })), fl };
+    paCacheSet(ck, ii);
+  }
+  const versions = new Set(GAME_PA[gid]?.v || []); const vg = vgOf(gid);
+  const held = ii.held.map(x => ({ p: prettyName(x.p), r: Math.max(0, ...x.v.filter(([v]) => versions.has(v)).map(([, r]) => r)) })).filter(x => x.r > 0).sort((a, b) => b.r - a.r).slice(0, 6);
+  return { ...ii, heldHere: held, flavor: (vg && ii.fl[vg]) || Object.values(ii.fl).pop() || '' };
+}
+
 /* Legal-move digest for the repair prompt */
 function learnsetDigest(p) {
   const lv = [], tm = [], tu = [];
@@ -946,11 +1022,11 @@ Each "team" entry exactly in this shape:
   "evo": {"vi": "Chimchar → Monferno (Lv. 14) → Infernape (Lv. 36)", "en": "Chimchar → Monferno (Lv. 14) → Infernape (Lv. 36)"},
   "ability": {"name": {"vi": "Rực Rỡ", "en": "Blaze"}, "desc": {"vi": "...", "en": "..."}},
   "nature": {"name": {"vi": "Ngây Thơ", "en": "Naive"}, "up": "spe", "down": "spd"},
-  "item": {"name": {"vi": "Quả Oran", "en": "Oran Berry"}, "note": {"vi": "...", "en": "..."}},
+  "item": {"name": {"vi": "Quả Oran", "en": "Oran Berry"}, "note": {"vi": "...", "en": "..."}, "how": {"vi": "Cây berry ở Route 205", "en": "Berry tree on Route 205"}},
   "moves": [ {"name": {"vi": "Đấm Tốc Độ", "en": "Mach Punch"}, "type": "fighting", "method": {"k": "level", "v": "Lv. 14"}} ],
   "role": {"label": {"vi": "Mũi Nhọn Tấn Công", "en": "Lead Sweeper"}, "desc": {"vi": "...", "en": "..."}}
 }
-Field rules: "loc.place" = EARLIEST place it can be obtained (for an evolved form, where its first stage is caught; for a newcomer, where/when to get it). "moves" = exactly 4 moves it can have by this phase. "method.k" one of ${METHOD_KEYS.join(', ')}; "method.v" like "Lv. 14", "TM35", "HM02", "Tutor". "nature.up"/"down" among ${STAT_KEYS.join(', ')} (no neutral natures). "item" obtainable by this phase. Use null for "ability"/"nature"/"item" only where the mechanic does not exist in this game. The role description must name which of this phase's battles it handles and why.`;
+Field rules: "loc.place" = EARLIEST place it can be obtained (for an evolved form, where its first stage is caught; for a newcomer, where/when to get it). "item.how" = exactly where and how to get that item in THIS game before or during this phase (place + method: found on the ground, gift from an NPC, Poké Mart, berry tree, held by a wild Pokémon). Never pick an item that is only available after the Hall of Fame or only in a Battle Frontier/Battle Tower shop. "moves" = exactly 4 moves it can have by this phase. "method.k" one of ${METHOD_KEYS.join(', ')}; "method.v" like "Lv. 14", "TM35", "HM02", "Tutor". "nature.up"/"down" among ${STAT_KEYS.join(', ')} (no neutral natures). "item" obtainable by this phase. Use null for "ability"/"nature"/"item" only where the mechanic does not exist in this game. The role description must name which of this phase's battles it handles and why.`;
 }
 
 function repairPrompt(game, phaseKey, items) {
@@ -1003,7 +1079,9 @@ const UI = {
       fileWarn:'File cấu hình chứa API key: cất ở máy của bạn, đừng tải lên GitHub hay gửi cho người khác.',
       privacy:'Key chỉ lưu trong trình duyệt này. Lưu ý: dữ liệu gửi tới gói free của Gemini có thể được Google dùng để cải thiện sản phẩm.', models:'model khả dụng' },
     storageOff:'Trình duyệt đang chặn lưu dữ liệu cho trang này (thường do tab ẩn danh hoặc cài đặt xóa dữ liệu trang khi đóng). Cấu hình AI và đội hình sẽ mất khi đóng tab. Hãy mở bằng tab thường, cho phép trang này lưu dữ liệu, hoặc dùng "Nạp file cấu hình" trong Cấu hình AI.',
-    triedModels:'Đã bỏ qua:', newMember:'Mới vào đội', gen_search:'Tìm web', formFix:'Đã hạ dạng: AI đề xuất {from} nhưng dạng này cần Lv. {need}, vượt mức Lv. {cap} của giai đoạn, nên dùng {to} (PokéAPI).', oldPlan:'Đội này được tạo bằng bản cũ (lập cả 3 giai đoạn một lúc, chưa kiểm tra cấp tiến hóa). Bấm "Tạo lại" để AI tra cứu lần lượt Early → Mid → End và đổi Pokémon khi cần.', changesTitle:'Thay đổi so với', noChanges:'Giữ nguyên đội hình, chỉ tiến hóa. Đội hiện tại vẫn là lựa chọn tối ưu cho giai đoạn này nên không cần đổi.',
+    triedModels:'Đã bỏ qua:', newMember:'Mới vào đội', hoverHint:'Rê chuột / chạm để xem chi tiết', howGet:'Cách có', askHow:'Hỏi AI cách lấy', howUnknown:'Chưa có thông tin. Cấu hình AI để hỏi.',
+    effect:'Hiệu ứng', heldBy:'Pokémon hoang dã có thể cầm', learnHow:'Cách học', paNoData:'PokéAPI không có dữ liệu cho mục này.', enOnly:'Mô tả lấy từ PokéAPI (chỉ có tiếng Anh).',
+    oldValues:'Đã áp dụng chỉ số theo đúng thế hệ của game này.', cls:{ physical:'Vật lý', special:'Đặc biệt', status:'Trạng thái' }, mstat:{ power:'Sức mạnh', acc:'Chính xác', pp:'PP', prio:'Ưu tiên' }, gen_search:'Tìm web', formFix:'Đã hạ dạng: AI đề xuất {from} nhưng dạng này cần Lv. {need}, vượt mức Lv. {cap} của giai đoạn, nên dùng {to} (PokéAPI).', oldPlan:'Đội này được tạo bằng bản cũ (lập cả 3 giai đoạn một lúc, chưa kiểm tra cấp tiến hóa). Bấm "Tạo lại" để AI tra cứu lần lượt Early → Mid → End và đổi Pokémon khi cần.', changesTitle:'Thay đổi so với', noChanges:'Giữ nguyên đội hình, chỉ tiến hóa. Đội hiện tại vẫn là lựa chọn tối ưu cho giai đoạn này nên không cần đổi.',
     starterTitle:'Chọn Pokémon khởi đầu', starterSub:'Đội hình sẽ được build xoay quanh starter bạn chọn: bù điểm yếu hệ và tránh trùng vai trò.', starterAuto:'Để AI chọn', starterAutoSub:'Starter mạnh nhất', starterCached:'Đã có đội hình',
     pickFirst:'Chọn một starter ở trên để build đội hình', pickFirstSub:'Mỗi starter có một đội hình riêng và được lưu lại, đổi qua lại không tốn thêm lượt AI.', starterChip:'Starter',
     starterField:'Starter (tùy chọn, cách nhau bằng dấu phẩy)',
@@ -1049,7 +1127,9 @@ const UI = {
       fileWarn:'The settings file contains your API keys: keep it on your computer, never upload it to GitHub or share it.',
       privacy:'Keys are stored only in this browser. Note: data sent to Gemini\'s free tier may be used by Google to improve its products.', models:'models available' },
     storageOff:'This browser is blocking storage for this page (usually a private window or a "clear site data on close" setting). AI settings and teams will be lost when the tab closes. Use a normal window, allow this site to store data, or use "Load settings file" in AI settings.',
-    triedModels:'Skipped:', newMember:'New member', gen_search:'Web search', formFix:'Form corrected: the AI suggested {from}, but it needs Lv. {need}, above this phase\'s Lv. {cap} cap, so {to} is used instead (PokéAPI).', oldPlan:'This team was made by an older version (all three phases at once, no evolution-level check). Press "Regenerate" to research Early → Mid → End in order and swap Pokémon where it helps.', changesTitle:'Changes since', noChanges:'Same team, just evolved. The current team is still the best choice for this phase, so no swaps are needed.',
+    triedModels:'Skipped:', newMember:'New member', hoverHint:'Hover / tap for details', howGet:'How to get', askHow:'Ask AI where to get it', howUnknown:'No info yet. Set up AI to ask.',
+    effect:'Effect', heldBy:'Held by wild Pokémon', learnHow:'Learned by', paNoData:'PokéAPI has no data for this.', enOnly:'',
+    oldValues:'Stats shown as they were in this game\'s generation.', cls:{ physical:'Physical', special:'Special', status:'Status' }, mstat:{ power:'Power', acc:'Acc.', pp:'PP', prio:'Priority' }, gen_search:'Web search', formFix:'Form corrected: the AI suggested {from}, but it needs Lv. {need}, above this phase\'s Lv. {cap} cap, so {to} is used instead (PokéAPI).', oldPlan:'This team was made by an older version (all three phases at once, no evolution-level check). Press "Regenerate" to research Early → Mid → End in order and swap Pokémon where it helps.', changesTitle:'Changes since', noChanges:'Same team, just evolved. The current team is still the best choice for this phase, so no swaps are needed.',
     starterTitle:'Choose your starter', starterSub:'The team is built around the starter you pick: covering its type weaknesses and avoiding overlapping roles.', starterAuto:'Let AI pick', starterAutoSub:'Strongest starter', starterCached:'Team ready',
     pickFirst:'Pick a starter above to build the team', pickFirstSub:'Each starter gets its own saved team, so switching between them costs no extra AI calls.', starterChip:'Starter',
     starterField:'Starters (optional, comma-separated)',
@@ -1184,6 +1264,103 @@ function AddGameModal({ open, onClose, onSave, t }) {
   );
 }
 
+/* ---------- Hover / tap popover (portal, so cards' overflow never clips it) ---------- */
+function InfoPop({ children, render, className = '', label, style }) {
+  const [open, setOpen] = useState(false); const [pos, setPos] = useState(null);
+  const ref = useRef(null); const hideT = useRef(null);
+  const place = () => {
+    const r = ref.current?.getBoundingClientRect(); if (!r) return;
+    const w = Math.min(320, window.innerWidth - 24);
+    const left = Math.min(Math.max(12, r.left), window.innerWidth - w - 12);
+    const below = window.innerHeight - r.bottom - 20, above = r.top - 20;
+    const up = below < 320 && above > below;   /* open toward the side with more room */
+    setPos({ left, w, top: up ? null : r.bottom + 8, bottom: up ? window.innerHeight - r.top + 8 : null, maxH: Math.max(160, up ? above : below) });
+  };
+  const openedAt = useRef(0);
+  const show = () => { clearTimeout(hideT.current); place(); if (!open) openedAt.current = Date.now(); setOpen(true); };
+  /* a tap fires hover + focus + click together: keep it open instead of toggling straight back */
+  const toggle = () => { if (open && Date.now() - openedAt.current > 400) setOpen(false); else show(); };
+  const hide = () => { clearTimeout(hideT.current); hideT.current = setTimeout(() => setOpen(false), 150); };
+  useEffect(() => {
+    if (!open) return;
+    /* follow the trigger while the page scrolls; close once it leaves the screen */
+    const follow = () => { const r = ref.current?.getBoundingClientRect(); if (!r || r.bottom < 0 || r.top > window.innerHeight) setOpen(false); else place(); };
+    const key = (e) => { if (e.key === 'Escape') setOpen(false); };
+    window.addEventListener('scroll', follow, true); window.addEventListener('resize', follow); window.addEventListener('keydown', key);
+    return () => { window.removeEventListener('scroll', follow, true); window.removeEventListener('resize', follow); window.removeEventListener('keydown', key); };
+  }, [open]);
+  return (
+    <>
+      <button ref={ref} type="button" aria-expanded={open} aria-label={label} className={className} style={style}
+        onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide} onClick={toggle}>{children}</button>
+      {open && pos ? ReactDOM.createPortal(
+        <div role="tooltip" onMouseEnter={() => clearTimeout(hideT.current)} onMouseLeave={hide}
+          style={{ position: 'fixed', left: pos.left, top: pos.top ?? undefined, bottom: pos.bottom ?? undefined, width: pos.w, zIndex: 70, maxHeight: pos.maxH, overflowY: 'auto' }}
+          className="rounded-xl p-3.5 text-[12.5px] leading-relaxed border-2 border-white/80 bg-[#10121b] shadow-[4px_4px_0_#f2f3f7] fade-in">{render()}</div>, document.body) : null}
+    </>
+  );
+}
+
+const CLS_STYLE = { physical: ['#3d1f14', '#ffb08a'], special: ['#14284a', '#8db8ff'], status: ['#24262f', '#c9ccd8'] };
+function usePA(fn, deps) {
+  const [st, setSt] = useState({ loading: true, data: null, err: false });
+  useEffect(() => { let alive = true; const ctl = new AbortController(); setSt({ loading: true, data: null, err: false });
+    fn(ctl.signal).then(d => alive && setSt({ loading: false, data: d, err: !d })).catch(() => alive && setSt({ loading: false, data: null, err: true }));
+    return () => { alive = false; ctl.abort(); }; }, deps);
+  return st;
+}
+function MoveDetails({ mv, ctx, lang, t }) {
+  const st = usePA((s) => moveInfo(mv.name?.en, ctx.gid, ctx.gen, s), [mv.name?.en, ctx.gid]);
+  const d = st.data; const k = mv.method?.k || 'other';
+  return (
+    <div className="grid gap-2">
+      <div className="flex items-center gap-2 flex-wrap"><span className="font-black text-[14px]">{bi(mv.name, lang)}</span><TypeBadge type={d?.type || mv.type} lang={lang} small />
+        {d?.cls ? <span className="chip" style={{ background: CLS_STYLE[d.cls][0], color: CLS_STYLE[d.cls][1] }}>{t.cls[d.cls]}</span> : null}</div>
+      {st.loading ? <div className="skeleton h-16" /> : st.err ? <p className="text-[var(--muted)]">{t.paNoData}</p> : (
+        <>
+          <dl className="grid grid-cols-4 gap-1.5 text-center">
+            {[['power', d.power ?? '—'], ['acc', d.acc != null ? d.acc + '%' : '—'], ['pp', d.pp ?? '—'], ['prio', d.prio > 0 ? '+' + d.prio : d.prio ?? 0]].map(([key, val]) => (
+              <div key={key} className="rounded-lg bg-white/5 border border-white/10 py-1.5"><dt className="text-[10px] uppercase tracking-[.1em] text-[var(--muted)] font-bold">{t.mstat[key]}</dt><dd className="font-black text-[14px] tabular-nums dex-num">{val}</dd></div>
+            ))}
+          </dl>
+          {d.effectText ? <p><span className="text-[var(--muted)] font-semibold">{t.effect}: </span>{d.effectText}</p> : null}
+          {d.flavor ? <p className="italic text-white/70">“{d.flavor}”</p> : null}
+          {lang === 'vi' && (d.effectText || d.flavor) ? <p className="text-[11px] text-[var(--muted)]">{t.enOnly}</p> : null}
+          {d.oldValues ? <p className="text-[11px] text-[#ffcf7a]">{t.oldValues}</p> : null}
+        </>
+      )}
+      <p className="text-[12px]"><span className="text-[var(--muted)] font-semibold">{t.learnHow}: </span>{t.method[k]}{mv.method?.v && !['tutor', 'egg'].includes(k) ? ' · ' + mv.method.v : ''}</p>
+      <p className="text-[10.5px] text-[var(--muted)]">PokéAPI · {ctx.gid}</p>
+    </div>
+  );
+}
+function ItemDetails({ item, ctx, lang, t, onAskHow }) {
+  const st = usePA((s) => itemInfo(item.name?.en, ctx.gid, s), [item.name?.en, ctx.gid]);
+  const [asking, setAsking] = useState(false); const [askErr, setAskErr] = useState('');
+  const d = st.data;
+  return (
+    <div className="grid gap-2">
+      <div className="flex items-center gap-2">{d?.sprite ? <img src={d.sprite} alt="" className="w-8 h-8 object-contain" style={{ imageRendering: 'pixelated' }} /> : null}<span className="font-black text-[14px]">{bi(item.name, lang)}</span></div>
+      <div className="rounded-lg p-2 bg-[#163a24]/50 border border-[#2f7a4b]/60">
+        <div className="text-[10.5px] uppercase tracking-[.12em] font-extrabold text-[#7ff0a3]">{t.howGet}</div>
+        {item.how ? <p className="mt-0.5">{one(item.how, lang)}</p>
+          : onAskHow ? <button type="button" disabled={asking} onClick={async () => { setAsking(true); setAskErr(''); try { await onAskHow(item); } catch (e) { setAskErr(e?.message || 'error'); } setAsking(false); }}
+              className="mt-1 rounded-lg px-2.5 py-1 border border-white/40 font-bold text-[12px] disabled:opacity-50">{asking ? '…' : t.askHow}</button>
+          : <p className="mt-0.5 text-[var(--muted)]">{t.howUnknown}</p>}
+        {askErr ? <p className="text-[11.5px] text-[#ff9a9a] mt-1">{askErr}</p> : null}
+      </div>
+      {st.loading ? <div className="skeleton h-12" /> : d ? (
+        <>
+          {d.effect ? <p><span className="text-[var(--muted)] font-semibold">{t.effect}: </span>{d.effect}</p> : null}
+          {d.heldHere.length ? <p><span className="text-[var(--muted)] font-semibold">{t.heldBy}: </span>{d.heldHere.map(x => `${x.p} (${x.r}%)`).join(', ')}</p> : null}
+          {d.flavor ? <p className="italic text-white/70">“{d.flavor}”</p> : null}
+          {lang === 'vi' && (d.effect || d.flavor) ? <p className="text-[11px] text-[var(--muted)]">{t.enOnly}</p> : null}
+        </>
+      ) : <p className="text-[var(--muted)]">{t.paNoData}</p>}
+    </div>
+  );
+}
+
 /* ---------- verification marks ---------- */
 function VMark({ state, t }) {
   if (state === 'ok') return <span title={t.vOk} aria-label={t.vOk} className="chip" style={{ background:'#163a24', color:'#7ff0a3', padding:'1px 5px' }}>✓</span>;
@@ -1192,7 +1369,7 @@ function VMark({ state, t }) {
 }
 
 /* ---------- Pokémon card (with PokéAPI verification) ---------- */
-function PokemonCard({ mon, lang, t, isNew }) {
+function PokemonCard({ mon, lang, t, isNew, ctx, onAskHow }) {
   const primary = mon.types?.[0] || 'normal';
   const [imgOk, setImgOk] = useState(true);
   const nat = mon.nature; const v = mon.verify;
@@ -1246,23 +1423,31 @@ function PokemonCard({ mon, lang, t, isNew }) {
             </div></> : none}
         </Row>
         <Row icon={IC.bag} label={t.item}>
-          {mon.item ? <><span className="font-bold">{bi(mon.item.name, lang)}</span>
-            {mon.item.note && one(mon.item.note, lang) ? <div className="text-[12px] text-[var(--muted)]">{one(mon.item.note, lang)}</div> : null}</> : none}
+          {mon.item ? <>
+            <InfoPop label={bi(mon.item.name, lang)} className="font-bold text-left underline decoration-dotted decoration-white/40 underline-offset-4 hover:decoration-[var(--accent)]"
+              render={() => <ItemDetails item={mon.item} ctx={ctx} lang={lang} t={t} onAskHow={onAskHow} />}>{bi(mon.item.name, lang)} <span className="text-[var(--muted)] text-[11px] no-underline">ⓘ</span></InfoPop>
+            {mon.item.note && one(mon.item.note, lang) ? <div className="text-[12px] text-[var(--muted)]">{one(mon.item.note, lang)}</div> : null}
+            {mon.item.how ? <div className="text-[12px] mt-0.5 text-[#bff5cf]"><span className="font-bold">{t.howGet}:</span> {one(mon.item.how, lang)}</div> : null}
+          </> : none}
         </Row>
       </dl>
       <div className="relative">
-        <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[.14em] font-extrabold text-[var(--muted)] mb-2"><Icon d={IC.sword} className="w-3.5 h-3.5" />{t.moves}</div>
+        <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[.14em] font-extrabold text-[var(--muted)] mb-2"><Icon d={IC.sword} className="w-3.5 h-3.5" />{t.moves}<span className="normal-case tracking-normal font-semibold text-[11px] ml-auto">{t.hoverHint}</span></div>
         <ul className="grid gap-1.5">
           {(mon.moves||[]).map((mv, i) => {
             const k = mv.method?.k || 'other'; const ms = METHOD_STYLE[k] || METHOD_STYLE.other;
             const label = (k === 'tm' || k === 'hm') ? (mv.method.v || t.method[k]) : `${t.method[k] || ''}${mv.method?.v && !['tutor','egg'].includes(k) ? ' · ' + mv.method.v.replace(/^Lv\.?\s*/i,'') : ''}`;
             const vs = v?.moves?.[i];
             return (
-              <li key={i} className="flex items-center gap-2 rounded-xl px-2.5 py-2 bg-black/30 border min-w-0" style={{ borderLeft: `4px solid ${tc(mv.type)}`, borderColor: vs === 'bad' ? '#9a3a3a' : 'rgba(255,255,255,.1)' }}>
-                <span className={`flex-1 min-w-0 text-[13px] font-semibold leading-snug ${vs === 'bad' ? 'line-through decoration-[#ff9a9a]/70' : ''}`}>{bi(mv.name, lang)}</span>
-                <TypeBadge type={mv.type} lang={lang} small />
-                <span className="chip border" style={{ background: ms.bg, color: ms.fg, borderColor: ms.bd }}>{label}</span>
-                <VMark state={vs} t={t} />
+              <li key={i} className="min-w-0">
+                <InfoPop label={bi(mv.name, lang)} render={() => <MoveDetails mv={mv} ctx={ctx} lang={lang} t={t} />}
+                  className="w-full flex items-center gap-2 rounded-xl px-2.5 py-2 bg-black/30 border min-w-0 text-left hover:bg-white/5 transition-colors cursor-help"
+                  style={{ borderLeft: `4px solid ${tc(mv.type)}`, borderColor: vs === 'bad' ? '#9a3a3a' : 'rgba(255,255,255,.1)' }}>
+                  <span className={`flex-1 min-w-0 text-[13px] font-semibold leading-snug ${vs === 'bad' ? 'line-through decoration-[#ff9a9a]/70' : ''}`}>{bi(mv.name, lang)}</span>
+                  <TypeBadge type={mv.type} lang={lang} small />
+                  <span className="chip border" style={{ background: ms.bg, color: ms.fg, borderColor: ms.bd }}>{label}</span>
+                  <VMark state={vs} t={t} />
+                </InfoPop>
               </li>
             );
           })}
@@ -1465,7 +1650,7 @@ function SettingsModal({ open, onClose, cfg, onSave, t, claudeAvailable }) {
    APP
    ===================================================================== */
 const PHASES = ['early', 'mid', 'end'];
-const APP_VERSION = 'v2026.11.06-r7 · tra cứu tuần tự + kiểm tra cấp tiến hóa';
+const APP_VERSION = 'v2026.11.07-r8 · chi tiết chiêu khi rê chuột + cách lấy vật phẩm';
 const cfgReady = (c) => c.provider === 'gemini' ? !!c.geminiKey : c.provider === 'groq' ? !!c.groqKey : c.provider === 'claude';
 const providerLabel = (c) => c.provider === 'gemini' ? `Gemini · ${modelList(c.geminiModels)[0] || ''}` : c.provider === 'groq' ? `Groq · ${modelList(c.groqModels)[0] || ''}` : 'Claude';
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -1509,7 +1694,9 @@ function App() {
   const builtinFor = (s) => { const b = BUILTIN_DATA[game.id]; return b && normKey(b.starter) === normKey(s) ? b : null; };
   const builtin = builtinFor(starter);
   const needsPick = starterList.length > 1 && !starter;
-  const data = needsPick ? null : (dataMap[dk] || builtin || null);
+  const override = dataMap[dk];
+  /* a saved copy of built-in data (e.g. after "Verify") is ignored once the built-in data has been corrected */
+  const data = needsPick ? null : ((override && !(builtin && override.rev !== builtin.rev)) ? override : (builtin || override || null));
   const gen = gens[dk];
   const pickStarter = (s) => setStarters(m => ({ ...m, [game.id]: s }));
   const cachedStarter = (s) => !!(dataMap[keyFor(game.id, s)] || builtinFor(s));
@@ -1591,6 +1778,20 @@ function App() {
       try { await runPhase(g, k, signal); }
       catch (e) { step(g.id, k, 'err'); if (e.code !== 'cancelled') setGen(g.id, s => ({ ...s, error: errCopy(e) })); return; }
     }
+  };
+
+  const cardCtx = useMemo(() => ({ gid: game.id, gen: Number(game.gen) || 9 }), [game.id, game.gen]);
+  /* Ask the AI where to get an item (for teams made before items carried "how"), then save it on every card using that item */
+  const askItemHow = async (item) => {
+    const prompt = `${COMMON_RULES(job)}
+
+In Pokémon ${job.name}, where and how exactly can the player get the held item "${item.name.en}" during a normal story playthrough (before the Hall of Fame)? Give the place and method (found on the ground, NPC gift, Poké Mart, berry tree, held by wild Pokémon). If it is only available after the Hall of Fame, say so clearly.
+Reply with ONLY: {"how": {"vi": "...", "en": "..."}}`;
+    const { json } = await askJSON(cfg, prompt, { useSearch: true, sampleFn: claudeSample });
+    const how = asT(json?.how); if (!how) throw new Error(t.err.bad_shape);
+    const base = clone(data);
+    PHASES.forEach(k => (base.phases[k]?.team || []).forEach(m => { if (m.item && normKey(m.item.name.en) === normKey(item.name.en)) m.item.how = how; }));
+    putData(dk, base);
   };
 
   /* re-verify current data (works for built-in Platinum and imports too) */
@@ -1743,7 +1944,7 @@ function App() {
             </section>
           ) : null}
           <section className="mt-8 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 stagger">
-            {ph.team?.length ? ph.team.map((m, i) => <PokemonCard key={m.name + i} mon={m} lang={lang} t={t} isNew={(ph.changes || []).some(c => normKey(c.in) === normKey(m.name))} />) : (ph.roster || []).map((r, i) => <SkeletonCard key={r.name + i} r={r} lang={lang} />)}
+            {ph.team?.length ? ph.team.map((m, i) => <PokemonCard key={m.name + i} mon={m} lang={lang} t={t} ctx={cardCtx} onAskHow={cfgReady(cfg) ? askItemHow : null} isNew={(ph.changes || []).some(c => normKey(c.in) === normKey(m.name))} />) : (ph.roster || []).map((r, i) => <SkeletonCard key={r.name + i} r={r} lang={lang} />)}
           </section>
           {ph.mascot ? (
             <section className="mt-8 rounded-2xl p-4 sm:p-5 border-2 border-dashed flex gap-4 items-center glass" style={{ borderColor: `${tc(ph.mascot.types?.[0])}aa` }}>

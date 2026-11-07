@@ -388,6 +388,22 @@ const PT_ITEM_HOW = {
 };
 Object.values(BUILTIN_DATA.platinum.phases).forEach(ph => ph.team.forEach(m => { if (m.item && PT_ITEM_HOW[m.item.name.en]) m.item.how = PT_ITEM_HOW[m.item.name.en]; }));
 
+/* Story path of each game, in the order the player walks it. kind: town | route | cave | landmark | league; gym = badge number */
+const JN = (name, kind = 'route', gym = 0) => ({ name, kind, gym });
+const JOURNEYS = {
+  platinum: [
+    JN('Twinleaf Town','town'), JN('Route 201'), JN('Lake Verity','landmark'), JN('Sandgem Town','town'), JN('Route 202'), JN('Jubilife City','town'),
+    JN('Route 203'), JN('Oreburgh Gate','cave'), JN('Oreburgh City','town',1), JN('Oreburgh Mine','cave'), JN('Route 204'), JN('Ravaged Path','cave'),
+    JN('Floaroma Town','town'), JN('Floaroma Meadow','landmark'), JN('Route 205'), JN('Valley Windworks','landmark'), JN('Eterna Forest','landmark'), JN('Eterna City','town',2),
+    JN('Route 206'), JN('Wayward Cave','cave'), JN('Route 207'), JN('Mt. Coronet','cave'), JN('Route 208'), JN('Hearthome City','town',3),
+    JN('Route 209'), JN('Lost Tower','landmark'), JN('Solaceon Town','town'), JN('Solaceon Ruins','cave'), JN('Route 210'), JN('Route 215'),
+    JN('Veilstone City','town',4), JN('Route 214'), JN('Valor Lakefront','landmark'), JN('Route 213'), JN('Pastoria City','town',5), JN('Great Marsh','landmark'),
+    JN('Route 212'), JN('Celestic Town','town'), JN('Route 211'), JN('Route 218'), JN('Canalave City','town',6), JN('Iron Island','cave'),
+    JN('Lake Valor','landmark'), JN('Route 216'), JN('Route 217'), JN('Snowpoint City','town',7), JN('Lake Acuity','landmark'), JN('Spear Pillar','landmark'),
+    JN('Distortion World','landmark'), JN('Route 222'), JN('Sunyshore City','town',8), JN('Route 223'), JN('Victory Road','cave'), JN('Pokémon League','league')
+  ]
+};
+
 /* JSON template shown to users adding a new game */
 function makeTemplate(gameName) {
   const sampleMon = {
@@ -1082,7 +1098,8 @@ const UI = {
       fileWarn:'File cấu hình chứa API key: cất ở máy của bạn, đừng tải lên GitHub hay gửi cho người khác.',
       privacy:'Key chỉ lưu trong trình duyệt này. Lưu ý: dữ liệu gửi tới gói free của Gemini có thể được Google dùng để cải thiện sản phẩm.', models:'model khả dụng' },
     storageOff:'Trình duyệt đang chặn lưu dữ liệu cho trang này (thường do tab ẩn danh hoặc cài đặt xóa dữ liệu trang khi đóng). Cấu hình AI và đội hình sẽ mất khi đóng tab. Hãy mở bằng tab thường, cho phép trang này lưu dữ liệu, hoặc dùng "Nạp file cấu hình" trong Cấu hình AI.',
-    triedModels:'Đã bỏ qua:', newMember:'Mới vào đội', openOn:'Mở trên', mascotSwap:'Nếu dùng, thay cho:', mascotOut:'Sẽ bị thay', mascotHl:'Rê chuột vào ô này để xem con sẽ bị thay trong đội.', hoverHint:'Rê chuột / chạm để xem chi tiết', howGet:'Cách có', askHow:'Hỏi AI cách lấy', howUnknown:'Chưa có thông tin. Cấu hình AI để hỏi.',
+    triedModels:'Đã bỏ qua:', newMember:'Mới vào đội', journeyTitle:'Bản đồ hành trình', journeyShort:'Trên đường đi', journeyNoMatch:'không khớp địa điểm nào trên đường chính (có thể là khu phụ hoặc tên khác)', journeyNoMatchShort:'Ngoài đường chính',
+    jTown:'Thị trấn', jRoute:'Route', jCave:'Hang / núi', jLandmark:'Địa danh', jBulba:'Xem địa điểm trên Bulbapedia', jLoading:'Đang dựng bản đồ hành trình…', openOn:'Mở trên', mascotSwap:'Nếu dùng, thay cho:', mascotAsking:'Đang hỏi AI nên thay con nào trong đội…', mascotAsk:'Hỏi AI nên thay con nào', mascotNeedCfg:'Cấu hình AI để xem mascot nên thay con nào trong đội.', mascotOut:'Sẽ bị thay', mascotHl:'Rê chuột vào ô này để xem con sẽ bị thay trong đội.', hoverHint:'Rê chuột / chạm để xem chi tiết', howGet:'Cách có', askHow:'Hỏi AI cách lấy', howUnknown:'Chưa có thông tin. Cấu hình AI để hỏi.',
     effect:'Hiệu ứng', heldBy:'Pokémon hoang dã có thể cầm', learnHow:'Cách học', paNoData:'PokéAPI không có dữ liệu cho mục này.', enOnly:'Mô tả lấy từ PokéAPI (chỉ có tiếng Anh).',
     oldValues:'Đã áp dụng chỉ số theo đúng thế hệ của game này.', cls:{ physical:'Vật lý', special:'Đặc biệt', status:'Trạng thái' }, mstat:{ power:'Sức mạnh', acc:'Chính xác', pp:'PP', prio:'Ưu tiên' }, gen_search:'Tìm web', formFix:'Đã hạ dạng: AI đề xuất {from} nhưng dạng này cần Lv. {need}, vượt mức Lv. {cap} của giai đoạn, nên dùng {to} (PokéAPI).', oldPlan:'Đội này được tạo bằng bản cũ (lập cả 3 giai đoạn một lúc, chưa kiểm tra cấp tiến hóa). Bấm "Tạo lại" để AI tra cứu lần lượt Early → Mid → End và đổi Pokémon khi cần.', changesTitle:'Thay đổi so với', noChanges:'Giữ nguyên đội hình, chỉ tiến hóa. Đội hiện tại vẫn là lựa chọn tối ưu cho giai đoạn này nên không cần đổi.',
     starterTitle:'Chọn Pokémon khởi đầu', starterSub:'Đội hình sẽ được build xoay quanh starter bạn chọn: bù điểm yếu hệ và tránh trùng vai trò.', starterAuto:'Để AI chọn', starterAutoSub:'Starter mạnh nhất', starterCached:'Đã có đội hình',
@@ -1130,7 +1147,8 @@ const UI = {
       fileWarn:'The settings file contains your API keys: keep it on your computer, never upload it to GitHub or share it.',
       privacy:'Keys are stored only in this browser. Note: data sent to Gemini\'s free tier may be used by Google to improve its products.', models:'models available' },
     storageOff:'This browser is blocking storage for this page (usually a private window or a "clear site data on close" setting). AI settings and teams will be lost when the tab closes. Use a normal window, allow this site to store data, or use "Load settings file" in AI settings.',
-    triedModels:'Skipped:', newMember:'New member', openOn:'Open on', mascotSwap:'If used, it replaces:', mascotOut:'Would be replaced', mascotHl:'Hover this box to see which team member it replaces.', hoverHint:'Hover / tap for details', howGet:'How to get', askHow:'Ask AI where to get it', howUnknown:'No info yet. Set up AI to ask.',
+    triedModels:'Skipped:', newMember:'New member', journeyTitle:'Journey map', journeyShort:'On the path', journeyNoMatch:'not on the main story path (side area or different name)', journeyNoMatchShort:'Off the main path',
+    jTown:'Town', jRoute:'Route', jCave:'Cave / mountain', jLandmark:'Landmark', jBulba:'Open this place on Bulbapedia', jLoading:'Building the journey map…', openOn:'Open on', mascotSwap:'If used, it replaces:', mascotAsking:'Asking the AI which member to replace…', mascotAsk:'Ask AI which member to replace', mascotNeedCfg:'Set up AI to see which team member the mascot should replace.', mascotOut:'Would be replaced', mascotHl:'Hover this box to see which team member it replaces.', hoverHint:'Hover / tap for details', howGet:'How to get', askHow:'Ask AI where to get it', howUnknown:'No info yet. Set up AI to ask.',
     effect:'Effect', heldBy:'Held by wild Pokémon', learnHow:'Learned by', paNoData:'PokéAPI has no data for this.', enOnly:'',
     oldValues:'Stats shown as they were in this game\'s generation.', cls:{ physical:'Physical', special:'Special', status:'Status' }, mstat:{ power:'Power', acc:'Acc.', pp:'PP', prio:'Priority' }, gen_search:'Web search', formFix:'Form corrected: the AI suggested {from}, but it needs Lv. {need}, above this phase\'s Lv. {cap} cap, so {to} is used instead (PokéAPI).', oldPlan:'This team was made by an older version (all three phases at once, no evolution-level check). Press "Regenerate" to research Early → Mid → End in order and swap Pokémon where it helps.', changesTitle:'Changes since', noChanges:'Same team, just evolved. The current team is still the best choice for this phase, so no swaps are needed.',
     starterTitle:'Choose your starter', starterSub:'The team is built around the starter you pick: covering its type weaknesses and avoiding overlapping roles.', starterAuto:'Let AI pick', starterAutoSub:'Strongest starter', starterCached:'Team ready',
@@ -1389,6 +1407,102 @@ function ItemDetails({ item, ctx, lang, t, onAskHow }) {
   );
 }
 
+/* ---------- Journey map: where on the story path a Pokémon is caught ---------- */
+const PHASE_COL = { early: '#7ff0a3', mid: '#8db8ff', end: '#ff9a9a' };
+function findNode(journey, place) {
+  const k = normKey(String(place || '').replace(/\(.*?\)/g, '').split(/[,;/]| — | - /)[0]); if (!k || k.length < 3) return -1;
+  let i = journey.findIndex(n => normKey(n.name) === k); if (i >= 0) return i;
+  i = journey.findIndex(n => { const nk = normKey(n.name); return nk.length >= 4 && (k.includes(nk) || nk.includes(k)); });
+  return i;
+}
+function phaseBounds(journey) {
+  const g = (n) => journey.findIndex(x => x.gym === n);
+  const e = g(3), m = g(7);
+  return { early: e >= 0 ? e : Math.round(journey.length * 0.33), mid: m >= 0 ? m : Math.round(journey.length * 0.75) };
+}
+const phaseAt = (i, b) => (i <= b.early ? 'early' : i <= b.mid ? 'mid' : 'end');
+const bulbaPlace = (place, region) => `https://bulbapedia.bulbagarden.net/w/index.php?search=${encodeURIComponent(`${place} ${region || ''}`.trim())}`;
+
+function JourneyStrip({ journey, pin, extra, color, t, lang, region, place }) {
+  const n = journey.length; const b = phaseBounds(journey); const x = (i) => 4 + (i / Math.max(1, n - 1)) * 92;
+  return (
+    <svg viewBox="0 0 100 18" preserveAspectRatio="none" className="w-full h-[22px] block" aria-hidden="true">
+      {['early', 'mid', 'end'].map(ph => { const a = ph === 'early' ? 0 : ph === 'mid' ? b.early : b.mid; const z = ph === 'early' ? b.early : ph === 'mid' ? b.mid : n - 1;
+        return <line key={ph} x1={x(a)} x2={x(z)} y1="11" y2="11" stroke={PHASE_COL[ph]} strokeOpacity=".55" strokeWidth="2.2" vectorEffect="non-scaling-stroke" />; })}
+      {journey.map((nd, i) => nd.gym ? <rect key={i} x={x(i) - 0.9} y="8.4" width="1.8" height="5.2" rx=".4" fill="#f2f3f7" /> : null)}
+      {extra.map(i => <circle key={'e' + i} cx={x(i)} cy="11" r="1.6" fill="#7ff0a3" stroke="#0b0b0f" strokeWidth=".4" vectorEffect="non-scaling-stroke" />)}
+      {pin >= 0 ? <g><line x1={x(pin)} x2={x(pin)} y1="2" y2="11" stroke={color} strokeWidth="1.6" vectorEffect="non-scaling-stroke" /><circle cx={x(pin)} cy="11" r="2.6" fill={color} stroke="#0b0b0f" strokeWidth=".6" vectorEffect="non-scaling-stroke" /></g> : null}
+    </svg>
+  );
+}
+
+function JourneyMap({ journey, pin, extra, color, t, lang, region, place, monName }) {
+  const COLS = 5, CW = 58, RH = 54, PADX = 38, PADY = 26;
+  const rows = Math.ceil(journey.length / COLS); const W = PADX * 2 + CW * (COLS - 1), H = PADY * 2 + RH * (rows - 1) + 10;
+  const b = phaseBounds(journey);
+  const pos = (i) => { const r = Math.floor(i / COLS), c = i % COLS; return { x: PADX + CW * (r % 2 ? COLS - 1 - c : c), y: PADY + RH * r }; };
+  const segs = journey.slice(1).map((_, k) => { const a = pos(k), z = pos(k + 1); return { a, z, ph: phaseAt(k + 1, b) }; });
+  const label = (i) => { const nd = journey[i]; return nd.kind === 'town' || nd.kind === 'league' || nd.gym || i === pin || extra.includes(i); };
+  return (
+    <div className="grid gap-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-black text-[14px]">{t.journeyTitle}</span>
+        {pin >= 0 ? <span className="chip" style={{ background: PHASE_COL[phaseAt(pin, b)] + '33', color: PHASE_COL[phaseAt(pin, b)] }}>{t.phases[phaseAt(pin, b)]}</span> : null}
+      </div>
+      <p className="text-[12px] text-white/80"><span className="font-bold" style={{ color }}>{monName}</span> · {place}{pin < 0 ? <span className="text-[#ffcf7a]"> — {t.journeyNoMatch}</span> : null}</p>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label={t.journeyTitle}>
+        {segs.map((s, k) => <line key={k} x1={s.a.x} y1={s.a.y} x2={s.z.x} y2={s.z.y} stroke={PHASE_COL[s.ph]} strokeOpacity=".7" strokeWidth="3" strokeLinecap="round" />)}
+        {journey.map((nd, i) => { const p = pos(i); const on = i === pin; const ex = extra.includes(i);
+          const fill = on ? color : ex ? '#7ff0a3' : nd.kind === 'town' || nd.kind === 'league' ? '#f2f3f7' : '#10121b';
+          const stroke = on ? '#f2f3f7' : '#f2f3f7';
+          return (
+            <g key={i}>
+              <title>{nd.name}{nd.gym ? ` · Gym ${nd.gym}` : ''}</title>
+              {on ? <circle cx={p.x} cy={p.y} r="11" fill="none" stroke={color} strokeWidth="2" opacity=".7"><animate attributeName="r" values="8;13;8" dur="1.8s" repeatCount="indefinite" /><animate attributeName="opacity" values=".8;.15;.8" dur="1.8s" repeatCount="indefinite" /></circle> : null}
+              {nd.kind === 'town' || nd.kind === 'league' ? <rect x={p.x - 6} y={p.y - 6} width="12" height="12" rx="2.5" fill={fill} stroke={stroke} strokeWidth="1.6" />
+                : nd.kind === 'cave' ? <rect x={p.x - 5} y={p.y - 5} width="10" height="10" transform={`rotate(45 ${p.x} ${p.y})`} fill={fill} stroke={stroke} strokeWidth="1.6" />
+                : nd.kind === 'landmark' ? <polygon points={`${p.x},${p.y - 6} ${p.x + 6},${p.y + 5} ${p.x - 6},${p.y + 5}`} fill={fill} stroke={stroke} strokeWidth="1.6" />
+                : <circle cx={p.x} cy={p.y} r={on || ex ? 5.5 : 4} fill={fill} stroke={stroke} strokeWidth="1.6" />}
+              {nd.gym ? <g><circle cx={p.x + 8} cy={p.y - 8} r="6" fill="#ffcb05" stroke="#0b0b0f" strokeWidth="1.2" /><text x={p.x + 8} y={p.y - 5.6} textAnchor="middle" fontSize="7.5" fontWeight="900" fill="#0b0b0f" fontFamily="JetBrains Mono, monospace">{nd.gym}</text></g> : null}
+              {label(i) ? <text x={p.x} y={p.y + 17} textAnchor="middle" fontSize={on ? 8.5 : 7.2} fontWeight={on ? 900 : 600} fill={on ? color : ex ? '#bff5cf' : '#c9ccd8'} fontFamily="Be Vietnam Pro, sans-serif">{nd.name.length > 16 ? nd.name.slice(0, 15) + '…' : nd.name}</text> : null}
+            </g>
+          );
+        })}
+      </svg>
+      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[var(--muted)]">
+        <span>■ {t.jTown}</span><span>● {t.jRoute}</span><span>◆ {t.jCave}</span><span>▲ {t.jLandmark}</span>
+        <span><span className="inline-block w-2.5 h-2.5 rounded-full align-middle mr-1" style={{ background: '#ffcb05' }} />Gym</span>
+        {extra.length ? <span><span className="inline-block w-2.5 h-2.5 rounded-full align-middle mr-1" style={{ background: '#7ff0a3' }} />PokéAPI</span> : null}
+      </div>
+      <div className="flex gap-3 text-[11px]">{['early', 'mid', 'end'].map(ph => <span key={ph} style={{ color: PHASE_COL[ph] }}>━ {t.phases[ph]}</span>)}</div>
+      <a href={bulbaPlace(place, region)} target="_blank" rel="noopener" className="text-[12px] font-bold text-[#8db8ff] hover:underline">{t.jBulba} ↗</a>
+    </div>
+  );
+}
+
+function JourneyBlock({ mon, ctx, t, lang }) {
+  const journey = ctx?.journey; const color = tc(mon.types?.[0]); const place = mon.loc?.place || '';
+  if (!journey?.length) {
+    return place ? <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11.5px]">
+      {ctx?.journeyState === 'run' ? <span className="text-[var(--muted)] inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-full border-2 border-[var(--accent)] border-t-transparent spin" />{t.jLoading}</span> : null}
+      <a href={bulbaPlace(place, ctx?.region)} target="_blank" rel="noopener" className="font-bold text-[#8db8ff] hover:underline">{t.jBulba} ↗</a>
+    </div> : null;
+  }
+  const pin = findNode(journey, place);
+  const extra = [...new Set((mon.verify?.loc || []).map(e => findNode(journey, e.area)).filter(i => i >= 0 && i !== pin))];
+  const b = phaseBounds(journey);
+  return (
+    <InfoPop label={t.journeyTitle} className="mt-1.5 w-full text-left rounded-lg px-2 pt-1 pb-0.5 bg-black/25 border border-white/10 hover:border-white/40 transition-colors cursor-help block"
+      render={() => <JourneyMap journey={journey} pin={pin} extra={extra} color={color} t={t} lang={lang} region={ctx?.region} place={place} monName={mon.name} />}>
+      <div className="flex items-center justify-between text-[10.5px] font-bold">
+        <span className="text-[var(--muted)] uppercase tracking-[.12em]">{t.journeyShort}</span>
+        {pin >= 0 ? <span style={{ color: PHASE_COL[phaseAt(pin, b)] }}>{pin + 1}/{journey.length} · {t.phases[phaseAt(pin, b)]}</span> : <span className="text-[#ffcf7a]">{t.journeyNoMatchShort}</span>}
+      </div>
+      <JourneyStrip journey={journey} pin={pin} extra={extra} color={color} t={t} lang={lang} />
+    </InfoPop>
+  );
+}
+
 /* ---------- verification marks ---------- */
 function VMark({ state, t }) {
   if (state === 'ok') return <span title={t.vOk} aria-label={t.vOk} className="chip" style={{ background:'#163a24', color:'#7ff0a3', padding:'1px 5px' }}>✓</span>;
@@ -1439,6 +1553,7 @@ function PokemonCard({ mon, lang, t, isNew, ctx, onAskHow, highlight }) {
               <span className="font-bold">✓ {t.encFound}:</span> {v.loc.map(e => `${e.area} (${e.who}, ${e.lv}, ${one(e.method, lang)})`).join(' · ')}
             </div> : <div className="mt-1 text-[12px] text-[#ffcf7a]">? {t.encNone}</div>
           ) : v?.status === 'ok' && v.loc === null ? <div className="mt-1 text-[12px] text-[var(--muted)]">{t.paOffline}</div> : null}
+          <JourneyBlock mon={mon} ctx={ctx} t={t} lang={lang} />
         </Row>
         <Row icon={IC.spark} label={t.ability}>
           {mon.ability ? <><span className="font-bold">{bi(mon.ability.name, lang)}</span>{' '}
@@ -1685,7 +1800,7 @@ function SettingsModal({ open, onClose, cfg, onSave, t, claudeAvailable }) {
    APP
    ===================================================================== */
 const PHASES = ['early', 'mid', 'end'];
-const APP_VERSION = 'v2026.11.07-r9 · bảng chi tiết mở bên cạnh + link Pokémon + mascot thay ai';
+const APP_VERSION = 'v2026.11.07-r11 · bản đồ hành trình chỗ bắt Pokémon';
 const cfgReady = (c) => c.provider === 'gemini' ? !!c.geminiKey : c.provider === 'groq' ? !!c.groqKey : c.provider === 'claude';
 const providerLabel = (c) => c.provider === 'gemini' ? `Gemini · ${modelList(c.geminiModels)[0] || ''}` : c.provider === 'groq' ? `Groq · ${modelList(c.groqModels)[0] || ''}` : 'Claude';
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -1816,7 +1931,33 @@ function App() {
     }
   };
 
-  const cardCtx = useMemo(() => ({ gid: game.id, gen: Number(game.gen) || 9, linkSite: cfg.linkSite || 'bulbapedia' }), [game.id, game.gen, cfg.linkSite]);
+  const [journeys, setJourneys] = useState(() => lsGet('pwtp.journeys.v1', {}));
+  const [journeyState, setJourneyState] = useState({});   /* gameId -> 'run' | 'err' */
+  const journey = JOURNEYS[game.id] || journeys[game.id] || null;
+  const genBusy = !!gen && Object.values(gen.steps).some(s => s === 'run' || s === 'verify' || s === 'search');
+  const fetchJourney = async (g) => {
+    setJourneyState(s => ({ ...s, [g.id]: 'run' }));
+    try {
+      const prompt = `${COMMON_RULES(g)}
+
+List the MAIN STORY PATH of Pokémon ${g.name} as the player walks it, in order, from the starting town to the final story battle (champion / final boss). Include every town/city, route, cave, forest and notable landmark the story passes through (30–60 entries). Use official English place names exactly as in the game.
+kind: "town" (town/city), "route", "cave" (caves, tunnels, mountains), "landmark" (forests, lakes, towers, buildings, other areas), "league" (Pokémon League / final area). gym: badge number 1–8 on the town where that Gym (or the game's equivalent milestone: trial captain, Titan, Star Base, rank-up battle) is; 0 otherwise.
+Reply with ONLY: {"journey": [{"name": "Pallet Town", "kind": "town", "gym": 0}]}`;
+      const { json } = await askJSON(cfg, prompt, { useSearch: true, sampleFn: claudeSample });
+      const list = (Array.isArray(json?.journey) ? json.journey : []).filter(n => n && n.name).slice(0, 90)
+        .map(n => JN(String(n.name), ['town', 'route', 'cave', 'landmark', 'league'].includes(n.kind) ? n.kind : 'route', Math.max(0, Math.min(8, Number(n.gym) || 0))));
+      if (list.length < 8) throw new Error('bad');
+      setJourneys(m => { const nm = { ...m, [g.id]: list }; lsSet('pwtp.journeys.v1', nm); return nm; });
+      setJourneyState(s => ({ ...s, [g.id]: '' }));
+    } catch { setJourneyState(s => ({ ...s, [g.id]: 'err' })); }
+  };
+  /* build the story map once per game, after the game has a team to show */
+  useEffect(() => {
+    if (journey || !data || !cfgReady(cfg) || journeyState[game.id] || genBusy) return;
+    fetchJourney(game);
+  }, [game.id, !!data, cfg, genBusy]);
+  const cardCtx = useMemo(() => ({ gid: game.id, gen: Number(game.gen) || 9, linkSite: cfg.linkSite || 'bulbapedia', journey, journeyState: journeyState[game.id], region: game.region }),
+    [game.id, game.gen, cfg.linkSite, journey, journeyState[game.id], game.region]);
   /* Ask the AI where to get an item (for teams made before items carried "how"), then save it on every card using that item */
   const askItemHow = async (item) => {
     const prompt = `${COMMON_RULES(job)}
@@ -1829,6 +1970,30 @@ Reply with ONLY: {"how": {"vi": "...", "en": "..."}}`;
     PHASES.forEach(k => (base.phases[k]?.team || []).forEach(m => { if (m.item && normKey(m.item.name.en) === normKey(item.name.en)) m.item.how = how; }));
     putData(dk, base);
   };
+
+  const [mascotAsk, setMascotAsk] = useState({});   /* dk -> 'run' | error text */
+  const askMascotSwap = async () => {
+    const ph = data?.phases?.end; const m = ph?.mascot; if (!m || !ph.team?.length) return;
+    setMascotAsk(s => ({ ...s, [dk]: 'run' }));
+    try {
+      const prompt = `${COMMON_RULES(job)}
+
+End-game team in Pokémon ${job.name}: ${ph.team.map(x => `${x.name} (${x.types.join('/')}) — ${one(x.role?.label, 'en')}`).join('; ')}.
+Optional mascot: ${m.name} (${(m.types || []).join('/')}).
+If the player adds ${m.name}, which ONE current member should it replace for the Elite Four / final battles, and why? Mention what the team loses (coverage, HM user, ability) and how to compensate.
+Reply with ONLY: {"replaces": "<exact member name from the team>", "why": {"vi": "...", "en": "..."}}`;
+      const { json } = await askJSON(cfg, prompt, { useSearch: false, sampleFn: claudeSample });
+      const rep = String(json?.replaces || ''); const member = ph.team.find(x => normKey(x.name) === normKey(rep));
+      if (!member) throw new Error(t.err.bad_shape);
+      const base = clone(data); base.phases.end.mascot = { ...base.phases.end.mascot, replaces: member.name, why: asT(json.why) };
+      putData(dk, base); setMascotAsk(s => ({ ...s, [dk]: '' }));
+    } catch (e) { setMascotAsk(s => ({ ...s, [dk]: e?.code ? errCopy(e) : (e?.message || 'error') })); }
+  };
+  /* fill it in automatically, once, when the End tab shows a mascot without that info */
+  useEffect(() => {
+    const m = data?.phases?.end?.mascot;
+    if (phase === 'end' && m && !m.replaces && cfgReady(cfg) && mascotAsk[dk] === undefined && !running) askMascotSwap();
+  }, [phase, dk, data?.phases?.end?.mascot?.replaces, cfg]);
 
   /* re-verify current data (works for built-in Platinum and imports too) */
   const verifyAll = async () => {
@@ -1993,6 +2158,16 @@ Reply with ONLY: {"how": {"vi": "...", "en": "..."}}`;
                   <p className="text-[13px] text-white/75 mt-1 leading-relaxed">{one(ph.mascot.note, lang)}</p>
                 </div>
               </div>
+              {!ph.mascot.replaces ? (
+                <div className="rounded-xl p-3 bg-black/30 border border-white/15 flex flex-wrap items-center gap-3 text-[13px]">
+                  {mascotAsk[dk] === 'run' ? <><span className="w-4 h-4 rounded-full border-2 border-[var(--accent)] border-t-transparent spin" />{t.mascotAsking}</>
+                    : cfgReady(cfg) ? <>
+                        {mascotAsk[dk] ? <span className="text-[#ff9a9a]">{mascotAsk[dk]}</span> : null}
+                        <button onClick={askMascotSwap} className="rounded-lg px-3 py-1.5 border-2 border-white/40 font-bold">{t.mascotAsk}</button>
+                      </>
+                    : <span className="text-[var(--muted)]">{t.mascotNeedCfg}</span>}
+                </div>
+              ) : null}
               {ph.mascot.replaces ? (
                 <div className="rounded-xl p-3 bg-black/30 border border-white/15 grid gap-1.5">
                   <div className="flex flex-wrap items-center gap-2 text-[13.5px]">
